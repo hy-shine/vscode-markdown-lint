@@ -6,26 +6,65 @@ import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
 
 export async function exportHtml(sourceUri: vscode.Uri, context: vscode.ExtensionContext): Promise<void> {
+  const targetUri = await vscode.window.showSaveDialog({
+    title: 'Export Markdown to HTML',
+    defaultUri: vscode.Uri.file(sourceUri.fsPath.replace(/\.md$/, '.html')),
+    filters: {
+      'HTML Files': ['html'],
+    },
+  });
+
+  if (!targetUri) {
+    return;
+  }
+
   const markdown = await vscode.workspace.fs.readFile(sourceUri);
   const markdownText = new TextDecoder().decode(markdown);
-  console.log('[markdown-lint] exportHtml: markdown length', markdownText.length);
   const config = getWorkbenchConfig();
   const toc = extractToc(markdownText);
   const baseUri = vscode.Uri.joinPath(sourceUri, '..');
+  
   let rendered: { html: string };
   try {
     rendered = renderMarkdown(markdownText, toc, baseUri);
-    console.log('[markdown-lint] exportHtml: rendered html length', rendered.html.length);
   } catch (err) {
     console.error('[markdown-lint] exportHtml: renderMarkdown failed', err);
     throw err;
+  }
+
+  // Convert local images to base64
+  let finalHtmlContent = rendered.html;
+  const imgRegex = /<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g;
+  const replacements: { oldMatch: string, newMatch: string }[] = [];
+  
+  for (const match of finalHtmlContent.matchAll(imgRegex)) {
+    const fullMatch = match[0];
+    const src = match[2];
+    
+    if (src.startsWith('file://')) {
+      try {
+        const fileUri = vscode.Uri.parse(src);
+        const fileData = await vscode.workspace.fs.readFile(fileUri);
+        const ext = path.extname(fileUri.fsPath).toLowerCase().slice(1) || 'png';
+        const base64 = Buffer.from(fileData).toString('base64');
+        const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+        const newSrc = `data:${mime};base64,${base64}`;
+        const newMatch = fullMatch.replace(`src="${src}"`, `src="${newSrc}"`);
+        replacements.push({ oldMatch: fullMatch, newMatch });
+      } catch (e) {
+        console.warn(`[markdown-lint] exportHtml: failed to load image ${src}`, e);
+      }
+    }
+  }
+
+  for (const { oldMatch, newMatch } of replacements) {
+    finalHtmlContent = finalHtmlContent.replace(oldMatch, newMatch);
   }
 
   const themeMode = config.themeMode === 'auto'
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
-  const katexCss = loadKatexCss(context);
 
   const tocHtml = config.showToc
     ? `<nav class="export-toc">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${item.slug}">${item.text}</a></div>`).join('\n')}</nav>`
@@ -37,22 +76,26 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${path.basename(sourceUri.fsPath, '.md')}</title>
-  <style>${katexCss}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
   <style>${styleCss}</style>
 </head>
 <body class="export-body theme-${themeMode} style-${config.previewStyle}">
   ${tocHtml}
-  <article class="preview-content">${rendered.html}</article>
+  <article class="preview-content">${finalHtmlContent}</article>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ startOnLoad: true, theme: '${themeMode === 'dark' ? 'dark' : 'default'}' });
+      }
+    });
+  </script>
 </body>
 </html>`;
 
-  const targetPath = sourceUri.fsPath.replace(/\.md$/, '.html');
-  const targetUri = vscode.Uri.file(targetPath);
-
-  console.log('[markdown-lint] exportHtml: final html length', html.length);
   await vscode.workspace.fs.writeFile(targetUri, new TextEncoder().encode(html));
-  console.log('[markdown-lint] exportHtml: wrote file', targetPath);
-  await vscode.window.showInformationMessage(`Exported HTML: ${targetPath}`, 'Open').then((choice) => {
+  
+  await vscode.window.showInformationMessage(`Exported HTML: ${targetUri.fsPath}`, 'Open').then((choice) => {
     if (choice === 'Open') {
       void vscode.env.openExternal(targetUri);
     }
@@ -96,15 +139,6 @@ function loadExportCss(context: vscode.ExtensionContext, themeMode: string, prev
 }
 `;
     return css;
-  } catch {
-    return '';
-  }
-}
-
-function loadKatexCss(context: vscode.ExtensionContext): string {
-  const cssPath = vscode.Uri.joinPath(context.extensionUri, 'node_modules', 'katex', 'dist', 'katex.min.css').fsPath;
-  try {
-    return fs.readFileSync(cssPath, 'utf-8');
   } catch {
     return '';
   }

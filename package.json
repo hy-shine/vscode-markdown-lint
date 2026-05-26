@@ -22,12 +22,12 @@
     "Other"
   ],
   "keywords": [
-  "markdown",
-  "preview",
-  "toc",
-  "mermaid",
-  "formatter"
-],
+    "markdown",
+    "preview",
+    "toc",
+    "mermaid",
+    "formatter"
+  ],
   "icon": "images/icon.png",
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -70,13 +70,25 @@
       "properties": {
         "markdown-lint.themeMode": {
           "type": "string",
-          "enum": ["auto", "light", "dark"],
+          "enum": [
+            "auto",
+            "light",
+            "dark"
+          ],
           "default": "auto",
           "description": "Theme mode for the Markdown Lint preview."
         },
         "markdown-lint.previewStyle": {
           "type": "string",
-          "enum": ["default", "github", "notion", "tokyo-night", "obsidian", "paper", "typora"],
+          "enum": [
+            "default",
+            "github",
+            "notion",
+            "tokyo-night",
+            "obsidian",
+            "paper",
+            "typora"
+          ],
           "enumDescriptions": [
             "Default clean style",
             "GitHub-flavored markdown style",
@@ -110,6 +122,8 @@
   "dependencies": {
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
-    "marked": "^15.0.12"
+    "marked": "^15.0.12",
+    "mermaid": "^11.15.0",
+    "prettier": "^3.8.3"
   }
 }

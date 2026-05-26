@@ -29,10 +29,16 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           localResourceRoots: [
             vscode.Uri.joinPath(this.context.extensionUri, 'media'),
             vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
+            vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
           ],
           retainContextWhenHidden: true,
         },
       );
+
+      this.panel.iconPath = {
+        light: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview.svg'),
+        dark: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview-dark.svg')
+      };
 
       this.panel.onDidDispose(() => {
         this.panel = undefined;
@@ -49,7 +55,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       this.panel.webview.html = this.getHtml(this.panel.webview);
     }
 
-    this.panel.title = `MD Lint ${editor.document.fileName.split(/[\\/]/).pop() ?? 'Preview'}`;
+    this.panel.title = editor.document.fileName.split(/[\\/]/).pop() ?? 'Untitled';
     this.panel.reveal(vscode.ViewColumn.Beside);
     void this.update(editor);
   }
@@ -72,6 +78,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       localResourceRoots: [
         vscode.Uri.joinPath(this.context.extensionUri, 'media'),
         vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
+        vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
         baseUri,
       ],
     };
@@ -130,7 +137,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
     const editor = await this.resolveEditor(document);
 
-    const formatted = formatMarkdownDocument(document.getText());
+    const formatted = await formatMarkdownDocument(document.getText());
     const fullRange = new vscode.Range(
       document.positionAt(0),
       document.positionAt(document.getText().length),
@@ -251,9 +258,14 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         }
         try {
           const doc = await vscode.workspace.openTextDocument(linkUri);
-          const editor = await vscode.window.showTextDocument(doc);
           if (doc.languageId === 'markdown') {
-            await this.reveal(editor);
+            this.sourceUri = doc.uri;
+            if (this.panel) {
+              this.panel.title = doc.fileName.split(/[\\/]/).pop() ?? 'Untitled';
+              await this.update(undefined);
+            }
+          } else {
+            await vscode.window.showTextDocument(doc);
           }
         } catch {
           await vscode.env.openExternal(linkUri);
@@ -295,6 +307,9 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.css'));
     const katexStyleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist', 'katex.min.css'),
+    );
+    const mermaidUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js'),
     );
     const nonce = getNonce();
 
@@ -383,6 +398,9 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       </div>
     </div>
     <main id="preview-content" class="preview-content"></main>
+    <script nonce="${nonce}">
+      window.MDLINT_MERMAID_URI = "${mermaidUri}";
+    </script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
   </body>
 </html>`;

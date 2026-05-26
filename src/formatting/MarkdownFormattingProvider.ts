@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { formatMarkdownDocument } from '../core/formatter';
 
 export class MarkdownFormattingProvider implements vscode.DocumentFormattingEditProvider {
-  public provideDocumentFormattingEdits(document: vscode.TextDocument): vscode.TextEdit[] {
+  public async provideDocumentFormattingEdits(document: vscode.TextDocument): Promise<vscode.TextEdit[]> {
     if (document.languageId !== 'markdown') {
       return [];
     }
@@ -12,6 +12,6 @@ export class MarkdownFormattingProvider implements vscode.DocumentFormattingEdit
       document.positionAt(document.getText().length),
     );
 
-    return [vscode.TextEdit.replace(fullRange, formatMarkdownDocument(document.getText()))];
+    return [vscode.TextEdit.replace(fullRange, await formatMarkdownDocument(document.getText()))];
   }
 }
