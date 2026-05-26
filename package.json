@@ -2,7 +2,7 @@
   "name": "markdown-lint",
   "displayName": "Markdown Preview Lint",
   "description": "Enhanced Markdown preview with multiple themes, table of contents, math formulas, code highlighting, and export capabilities.",
-  "version": "0.3.0",
+  "version": "0.3.1-beta.1",
   "publisher": "hyshine",
   "license": "MIT",
   "author": "jessy",
@@ -110,7 +110,7 @@
     }
   },
   "scripts": {
-    "compile": "esbuild src/extension.ts --bundle --platform=node --outfile=dist/extension.js --external:vscode --format=cjs --sourcemap",
+    "compile": "esbuild src/extension.ts --bundle --platform=node --outfile=dist/extension.js --external:vscode --external:prettier --format=cjs --sourcemap",
     "watch": "npm run compile -- --watch"
   },
   "devDependencies": {

@@ -3,6 +3,8 @@ tsconfig.json
 node_modules/**
 !node_modules/katex/dist/katex.min.css
 !node_modules/katex/dist/fonts/**
+!node_modules/mermaid/dist/mermaid.min.js
+!node_modules/prettier/**
 **/*.map
 .vscode/**
 *.vsix

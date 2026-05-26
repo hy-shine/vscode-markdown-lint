@@ -26,14 +26,14 @@ A polished Markdown preview extension for VS Code. Open a side panel with live r
 
 Choose a look that fits your workflow:
 
-| Style | Description |
-|-------|-------------|
-| **Default** | Follows your VS Code color theme |
-| **GitHub** | Matches GitHub's Markdown rendering |
-| **Notion** | Clean, spacious editorial style |
+| Style           | Description                                    |
+| --------------- | ---------------------------------------------- |
+| **Default**     | Follows your VS Code color theme               |
+| **GitHub**      | Matches GitHub's Markdown rendering            |
+| **Notion**      | Clean, spacious editorial style                |
 | **Tokyo Night** | Low-contrast dark inspired by the editor theme |
-| **Obsidian** | Inspired by the Obsidian app aesthetic |
-| **Paper** | Ink on cream paper, print-ready |
+| **Obsidian**    | Inspired by the Obsidian app aesthetic         |
+| **Paper**       | Ink on cream paper, print-ready                |
 
 Each style supports **Auto / Light / Dark** mode and switches with your VS Code theme when set to Auto.
 
@@ -60,11 +60,11 @@ Export your Markdown to a standalone HTML file with all styles inlined — ready
 
 Search for `markdown-lint` in VS Code Settings:
 
-| Setting | Default | Options |
-|---------|---------|---------|
-| `markdown-lint.themeMode` | `auto` | `auto` · `light` · `dark` |
+| Setting                      | Default   | Options                                                                |
+| ---------------------------- | --------- | ---------------------------------------------------------------------- |
+| `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                              |
 | `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` |
-| `markdown-lint.showToc` | `true` | `true` · `false` |
+| `markdown-lint.showToc`      | `true`    | `true` · `false`                                                       |
 
 ---
 

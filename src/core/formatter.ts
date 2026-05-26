@@ -1,7 +1,6 @@
-import * as prettier from 'prettier';
-
 export async function formatMarkdownDocument(markdown: string): Promise<string> {
   try {
+    const prettier = await import('prettier');
     const formatted = await prettier.format(markdown, {
       parser: 'markdown',
       proseWrap: 'preserve',
