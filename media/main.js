@@ -181,6 +181,10 @@ window.addEventListener('message', (event) => {
   }
   setBodyPresentation(state.themeMode, state.previewStyle);
   syncFloatingMenu(state.themeMode, state.previewStyle);
+
+  // Cleanup orphaned Mermaid error containers that are attached directly to the document body
+  document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
+
   previewContent.innerHTML = state.html;
   renderToc(state.toc);
   renderMermaidDiagrams();

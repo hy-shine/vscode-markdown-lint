@@ -73,14 +73,20 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const markdown = document.getText();
     const toc = extractToc(markdown);
     const baseUri = vscode.Uri.joinPath(document.uri, '..');
+    const localResourceRoots = [
+      vscode.Uri.joinPath(this.context.extensionUri, 'media'),
+      vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
+      vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
+      baseUri,
+    ];
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+    if (workspaceFolder) {
+      localResourceRoots.push(workspaceFolder.uri);
+    }
+
     this.panel.webview.options = {
       enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(this.context.extensionUri, 'media'),
-        vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
-        vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
-        baseUri,
-      ],
+      localResourceRoots,
     };
     const rendered = renderMarkdown(
       markdown,
@@ -317,7 +323,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdn.jsdelivr.net; font-src ${webview.cspSource}; img-src ${webview.cspSource} data: https:; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net; connect-src https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://cdn.jsdelivr.net; font-src ${webview.cspSource}; img-src ${webview.cspSource} data: https:; script-src 'nonce-${nonce}' ${webview.cspSource} https://cdn.jsdelivr.net; connect-src https://cdn.jsdelivr.net;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="${styleUri}" rel="stylesheet" />
     <link href="${katexStyleUri}" rel="stylesheet" />

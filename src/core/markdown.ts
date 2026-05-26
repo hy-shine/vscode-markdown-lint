@@ -108,8 +108,22 @@ export function renderMarkdown(
   };
 
   const stripped = stripFrontMatter(markdown);
+  let finalHtml = marked.parse(stripped, { renderer }) as string;
+  
+  // Rewrite raw HTML <img src="..."> tags to resolve local relative paths
+  finalHtml = finalHtml.replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*)>/gi, (match, before, src, after) => {
+    if (!/^(https?:|data:|#)/i.test(src) && baseUri) {
+      // Handle relative paths manually since joinPath doesn't always resolve '..' perfectly
+      // Better to resolve relative to baseUri path
+      const imageUri = vscode.Uri.file(vscode.Uri.joinPath(baseUri, src).fsPath);
+      const webviewSrc = resolveImageUri ? resolveImageUri(imageUri).toString() : imageUri.toString();
+      return `<img ${before}src="${webviewSrc}"${after}>`;
+    }
+    return match;
+  });
+
   return {
-    html: marked.parse(stripped, { renderer }) as string,
+    html: finalHtml,
   };
 }
 
