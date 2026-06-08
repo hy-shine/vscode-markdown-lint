@@ -71,13 +71,14 @@ export function renderMarkdown(
   baseUri?: vscode.Uri,
   resolveImageUri?: (uri: vscode.Uri) => vscode.Uri,
 ): RenderedMarkdown {
-  const lineToSlug = new Map(toc.map((item) => [item.line, item.slug]));
+  let headingIndex = 0;
 
   const renderer = new marked.Renderer();
   renderer.heading = ({ tokens, depth }: Tokens.Heading) => {
     const text = marked.Parser.parseInline(tokens);
-    const sourceLine = toc.find((item) => item.text === text)?.line ?? 0;
-    const slug = lineToSlug.get(sourceLine) ?? slugify(text);
+    const tocItem = toc[headingIndex++];
+    const sourceLine = tocItem?.line ?? 0;
+    const slug = tocItem?.slug ?? slugify(text.replace(/<[^>]+>/g, ''));
     return `<h${depth} id="${escapeAttribute(slug)}" data-source-line="${sourceLine}">${text}</h${depth}>`;
   };
   renderer.code = ({ text, lang }: Tokens.Code) => {

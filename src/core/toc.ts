@@ -5,27 +5,39 @@ export function extractToc(markdown: string): TocItem[] {
   const items: TocItem[] = [];
   const lines = markdown.split(/\r?\n/);
   
-  let inCodeFence = false;
-  
+  let codeFenceMarker: '`' | '~' | undefined;
+  let codeFenceLength = 0;
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
-    if (line.match(/^```/)) {
-      inCodeFence = !inCodeFence;
+    const fenceMatch = line.match(/^ {0,3}(`{3,}|~{3,})/);
+
+    if (fenceMatch) {
+      const marker = fenceMatch[1][0] as '`' | '~';
+      const length = fenceMatch[1].length;
+      if (!codeFenceMarker) {
+        codeFenceMarker = marker;
+        codeFenceLength = length;
+        continue;
+      }
+      if (marker === codeFenceMarker && length >= codeFenceLength) {
+        codeFenceMarker = undefined;
+        codeFenceLength = 0;
+        continue;
+      }
+    }
+
+    if (codeFenceMarker) {
       continue;
     }
-    
-    if (inCodeFence) {
-      continue;
-    }
-    
+
     const match = line.match(/^(#{1,6})\s+(.+?)\s*$/);
     if (!match) {
       continue;
     }
-    
+
     const level = match[1].length;
-    const text = match[2].trim();
+    const text = match[2].trim().replace(/\s+#+\s*$/, '').trim();
     const base = slugify(text);
 
     const count = slugCounts.get(base) ?? 0;

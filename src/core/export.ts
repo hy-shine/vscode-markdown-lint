@@ -45,9 +45,9 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
       try {
         const fileUri = vscode.Uri.parse(src);
         const fileData = await vscode.workspace.fs.readFile(fileUri);
-        const ext = path.extname(fileUri.fsPath).toLowerCase().slice(1) || 'png';
+        const ext = path.extname(fileUri.fsPath).toLowerCase().slice(1);
         const base64 = Buffer.from(fileData).toString('base64');
-        const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+        const mime = getImageMime(ext);
         const newSrc = `data:${mime};base64,${base64}`;
         const newMatch = fullMatch.replace(`src="${src}"`, `src="${newSrc}"`);
         replacements.push({ oldMatch: fullMatch, newMatch });
@@ -67,7 +67,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
 
   const tocHtml = config.showToc
-    ? `<nav class="export-toc">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${item.slug}">${item.text}</a></div>`).join('\n')}</nav>`
+    ? `<nav class="export-toc">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${escapeAttribute(item.slug)}">${escapeHtml(item.text)}</a></div>`).join('\n')}</nav>`
     : '';
 
   const html = `<!DOCTYPE html>
@@ -75,7 +75,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${path.basename(sourceUri.fsPath, '.md')}</title>
+  <title>${escapeHtml(path.basename(sourceUri.fsPath, '.md'))}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
   <style>${styleCss}</style>
 </head>
@@ -100,6 +100,35 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
       void vscode.env.openExternal(targetUri);
     }
   });
+}
+
+function getImageMime(ext: string): string {
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
 function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): string {

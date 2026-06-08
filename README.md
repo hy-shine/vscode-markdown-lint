@@ -34,6 +34,7 @@ Choose a look that fits your workflow:
 | **Tokyo Night** | Low-contrast dark inspired by the editor theme |
 | **Obsidian**    | Inspired by the Obsidian app aesthetic         |
 | **Paper**       | Ink on cream paper, print-ready                |
+| **Typora**      | Typora-inspired Whitey / Night themes          |
 
 Each style supports **Auto / Light / Dark** mode and switches with your VS Code theme when set to Auto.
 
@@ -52,7 +53,7 @@ Each style supports **Auto / Light / Dark** mode and switches with your VS Code 
 
 ### One-Click Export
 
-Export your Markdown to a standalone HTML file with all styles inlined — ready to share or publish.
+Export your Markdown to a shareable HTML file with preview styles and local images bundled. KaTeX and Mermaid assets may still load from CDN.
 
 ---
 
@@ -63,7 +64,7 @@ Search for `markdown-lint` in VS Code Settings:
 | Setting                      | Default   | Options                                                                |
 | ---------------------------- | --------- | ---------------------------------------------------------------------- |
 | `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                              |
-| `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` |
+| `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` · `typora` |
 | `markdown-lint.showToc`      | `true`    | `true` · `false`                                                       |
 
 ---
