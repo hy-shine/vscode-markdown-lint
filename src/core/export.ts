@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
+import { convertMermaidCodeBlocksForExport } from './exportMarkup';
 import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
 
@@ -32,8 +33,10 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     throw err;
   }
 
+  // Convert Mermaid code blocks into renderable containers for exported HTML
+  let finalHtmlContent = convertMermaidCodeBlocksForExport(rendered.html);
+
   // Convert local images to base64
-  let finalHtmlContent = rendered.html;
   const imgRegex = /<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g;
   const replacements: { oldMatch: string, newMatch: string }[] = [];
   
@@ -84,9 +87,10 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   <article class="preview-content">${finalHtmlContent}</article>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", async function() {
       if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({ startOnLoad: true, theme: '${themeMode === 'dark' ? 'dark' : 'default'}' });
+        mermaid.initialize({ startOnLoad: false, theme: '${themeMode === 'dark' ? 'dark' : 'default'}' });
+        await mermaid.run({ querySelector: '.mermaid' });
       }
     });
   </script>
