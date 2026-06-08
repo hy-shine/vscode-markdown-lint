@@ -63,3 +63,22 @@ test('strips ATX closing hashes from heading text', () => {
   assert.deepEqual(toc.map((item) => item.text), ['Title', 'Details']);
   assert.deepEqual(toc.map((item) => item.slug), ['title', 'details']);
 });
+
+test('normalizes inline Markdown markers in heading text', () => {
+  const toc = extractToc([
+    '#### **Bold Heading** Mapping',
+    '#### Heading with `code`',
+    '#### [Linked Heading](https://example.com)',
+  ].join('\n'));
+
+  assert.deepEqual(toc.map((item) => item.text), [
+    'Bold Heading Mapping',
+    'Heading with code',
+    'Linked Heading',
+  ]);
+  assert.deepEqual(toc.map((item) => item.slug), [
+    'bold-heading-mapping',
+    'heading-with-code',
+    'linked-heading',
+  ]);
+});

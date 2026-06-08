@@ -37,7 +37,7 @@ export function extractToc(markdown: string): TocItem[] {
     }
 
     const level = match[1].length;
-    const text = match[2].trim().replace(/\s+#+\s*$/, '').trim();
+    const text = normalizeHeadingText(match[2].trim().replace(/\s+#+\s*$/, '').trim());
     const base = slugify(text);
 
     const count = slugCounts.get(base) ?? 0;
@@ -61,4 +61,18 @@ export function slugify(value: string): string {
     .replace(/[^\w\u4e00-\u9fa5\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-');
+}
+
+function normalizeHeadingText(value: string): string {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .trim();
 }
