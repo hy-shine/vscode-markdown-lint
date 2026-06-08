@@ -84,7 +84,7 @@ func main() {
 ```json
 {
   "name": "vscode-mdlint",
-  "version": "0.3.1-beta.1",
+  "version": "0.4.0-beta.1",
   "publisher": "hy-shine"
 }
 ```
@@ -101,7 +101,7 @@ func main() {
   1. First step
   2. Second step
      - Nested unordered list
-     - **Bold** and *italic* text test
+     - **Bold** and _italic_ text test
      - ~~Strikethrough test~~
 
 ### Blockquote
@@ -170,7 +170,7 @@ This heading includes bold syntax. TOC clicks, heading anchors, and editor scrol
 
 This heading includes inline code. TOC clicks, heading anchors, and editor scroll sync should still work.
 
-### Closing Hash Heading ##
+### Closing Hash Heading
 
 The source heading ends with `##`. The TOC text should display `Closing Hash Heading` without the trailing `##`.
 
@@ -178,11 +178,11 @@ The source heading ends with `##`. The TOC text should display `Closing Hash Hea
 
 The `# Fake Heading` inside this `~~~` code fence should not appear in the TOC:
 
-~~~md
+```md
 # Fake Heading
 
 If this heading appears in the TOC, tilde fenced code block parsing has regressed.
-~~~
+```
 
 ### Special Characters & HTML Safety <Check>
 
