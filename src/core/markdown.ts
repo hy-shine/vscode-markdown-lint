@@ -3,7 +3,7 @@ import hljs from 'highlight.js';
 import katex from 'katex';
 import { marked, TokenizerAndRendererExtension, Tokens } from 'marked';
 import { TocItem } from '../types';
-import { slugify } from './toc';
+import { resolveHeadingMeta } from './headings';
 
 export interface RenderedMarkdown {
   html: string;
@@ -76,10 +76,8 @@ export function renderMarkdown(
   const renderer = new marked.Renderer();
   renderer.heading = ({ tokens, depth }: Tokens.Heading) => {
     const text = marked.Parser.parseInline(tokens);
-    const tocItem = toc[headingIndex++];
-    const sourceLine = tocItem?.line ?? 0;
-    const slug = tocItem?.slug ?? slugify(text.replace(/<[^>]+>/g, ''));
-    return `<h${depth} id="${escapeAttribute(slug)}" data-source-line="${sourceLine}">${text}</h${depth}>`;
+    const meta = resolveHeadingMeta(toc, headingIndex++, text);
+    return `<h${depth} id="${escapeAttribute(meta.slug)}" data-source-line="${meta.line}">${text}</h${depth}>`;
   };
   renderer.code = ({ text, lang }: Tokens.Code) => {
     if (lang === 'mermaid') {
