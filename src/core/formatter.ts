@@ -1,10 +1,12 @@
-export async function formatMarkdownDocument(markdown: string): Promise<string> {
+export async function formatMarkdownDocument(markdown: string, filePath?: string): Promise<string> {
   try {
     const prettier = await import('prettier');
+    const resolvedConfig = filePath ? await prettier.resolveConfig(filePath) : null;
     const formatted = await prettier.format(markdown, {
+      ...(resolvedConfig ?? {}),
       parser: 'markdown',
-      proseWrap: 'preserve',
-      printWidth: 80,
+      filepath: filePath,
+      proseWrap: resolvedConfig?.proseWrap ?? 'preserve',
     });
     return formatted;
   } catch (err) {

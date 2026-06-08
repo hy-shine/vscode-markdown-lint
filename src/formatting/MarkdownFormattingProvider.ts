@@ -12,6 +12,8 @@ export class MarkdownFormattingProvider implements vscode.DocumentFormattingEdit
       document.positionAt(document.getText().length),
     );
 
-    return [vscode.TextEdit.replace(fullRange, await formatMarkdownDocument(document.getText()))];
+    const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : undefined;
+
+    return [vscode.TextEdit.replace(fullRange, await formatMarkdownDocument(document.getText(), filePath))];
   }
 }

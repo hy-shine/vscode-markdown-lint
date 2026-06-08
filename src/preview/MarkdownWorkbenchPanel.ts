@@ -143,7 +143,8 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
     const editor = await this.resolveEditor(document);
 
-    const formatted = await formatMarkdownDocument(document.getText());
+    const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : undefined;
+    const formatted = await formatMarkdownDocument(document.getText(), filePath);
     const fullRange = new vscode.Range(
       document.positionAt(0),
       document.positionAt(document.getText().length),
