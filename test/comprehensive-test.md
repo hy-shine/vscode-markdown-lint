@@ -1,20 +1,25 @@
-# Markdown Lint - 综合渲染测试
+---
+title: Markdown Lint Comprehensive Test
+description: Preview, formatting, TOC, Mermaid, KaTeX, media, and export regression fixture
+---
 
-> 此文档用于测试 `vscode-mdlint` 插件在各种常规与极端 Markdown 语法下的渲染表现。包括排版、代码块、公式、Mermaid 图表以及嵌套结构。
+# Markdown Lint - Comprehensive Rendering Test
 
-## 1. 高级图表与公式 (Mermaid & KaTeX)
+> This document tests how the `vscode-mdlint` extension renders common and edge-case Markdown syntax, including typography, code blocks, formulas, Mermaid diagrams, media, and nested structures.
 
-### Mermaid 复杂流程图
+## 1. Advanced Diagrams and Formulas (Mermaid & KaTeX)
 
-带有 HTML 标签、特殊符号（修复前的报错案例测试）：
+### Mermaid Complex Flowchart
+
+Flowchart with HTML labels and special characters, covering a previously failing case:
 
 ```mermaid
 flowchart LR
-    A["原始资料<br>references/"] -->|"分析、归纳、系统化"| B["专题文档<br>harness/ / context/ ..."]
-    B -->|"提炼与压缩"| C["核心摘要<br>wiki/"]
+    A["Raw materials<br>references/"] -->|"Analyze, summarize, organize"| B["Topic documents<br>harness/ / context/ ..."]
+    B -->|"Extract and compress"| C["Core summary<br>wiki/"]
 ```
 
-### Mermaid 时序图
+### Mermaid Sequence Diagram
 
 ```mermaid
 sequenceDiagram
@@ -22,17 +27,17 @@ sequenceDiagram
     participant Vscode as VS Code
     participant Plugin as MDLint Plugin
 
-    User->>Vscode: 打开 .md 文件
-    Vscode->>Plugin: 触发 activate
-    Plugin-->>Vscode: 注入 Webview
-    Vscode-->>User: 显示精美渲染预览
+    User->>Vscode: Open a .md file
+    Vscode->>Plugin: Trigger activate
+    Plugin-->>Vscode: Inject Webview
+    Vscode-->>User: Show polished rendered preview
 ```
 
-### KaTeX 数学公式
+### KaTeX Math Formulas
 
-这是行内公式测试，比如著名的质能方程 $E=mc^2$。
+This is an inline formula test, for example the famous mass-energy equation $E=mc^2$.
 
-这是块级复杂多行公式测试：
+This is a complex multi-line block formula test:
 
 $$
 f(x) = \int_{-\infty}^\infty\hat f(\xi)\,e^{2 \pi i \xi x}\,d\xi
@@ -48,11 +53,11 @@ $$
 
 ---
 
-## 2. 代码高亮 (Syntax Highlighting)
+## 2. Code Highlighting
 
-行内代码块 `npm install vscode-mdlint` 测试。
+Inline code block test: `npm install vscode-mdlint`.
 
-**JavaScript 语法高亮**
+**JavaScript syntax highlighting**
 
 ```javascript
 async function loadMermaid() {
@@ -62,7 +67,7 @@ async function loadMermaid() {
 }
 ```
 
-**Go 语法高亮**
+**Go syntax highlighting**
 
 ```go
 package main
@@ -74,7 +79,7 @@ func main() {
 }
 ```
 
-**JSON 数据**
+**JSON data**
 
 ```json
 {
@@ -86,27 +91,27 @@ func main() {
 
 ---
 
-## 3. 复杂排版与嵌套结构 (Typography & Nesting)
+## 3. Typography and Nesting
 
-### 嵌套列表测试
+### Nested List Test
 
-- [ ] 待办事项 1
-- [x] 已完成事项
-- 多级列表测试
-  1. 第一步
-  2. 第二步
-     - 嵌套的无序列表
-     - **加粗**与*斜体*测试
-     - ~~删除线测试~~
+- [ ] Todo item 1
+- [x] Completed item
+- Multi-level list test
+  1. First step
+  2. Second step
+     - Nested unordered list
+     - **Bold** and *italic* text test
+     - ~~Strikethrough test~~
 
-### 引用区块 (Blockquote)
+### Blockquote
 
-> 这是一个引用区块。
-> 它可以跨越多行。
+> This is a blockquote.
+> It can span multiple lines.
 >
-> > 这是一个嵌套的引用。
+> > This is a nested quote.
 > >
-> > 在引用中我们甚至可以放代码块：
+> > A quote can even contain a code block:
 > >
 > > ```python
 > > print("Hello from blockquote!")
@@ -114,30 +119,77 @@ func main() {
 
 ---
 
-## 4. 表格对齐测试 (Tables)
+## 4. Table Alignment Test
 
-| 插件特性     | 默认支持 |                 描述 |
-| :----------- | :------: | -------------------: |
-| Mermaid      |    ✅    |   包含全部异步解析块 |
-| KaTeX        |    ✅    |         本地离线渲染 |
-| GitHub Theme |    ✅    | 完美还原 GitHub 样式 |
+| Feature      | Supported by Default |                       Description |
+| :----------- | :------------------: | --------------------------------: |
+| Mermaid      |          ✅          | Includes asynchronous block parse |
+| KaTeX        |          ✅          |              Local offline render |
+| GitHub Theme |          ✅          |          GitHub-like visual style |
 
 ---
 
-## 5. 链接与多媒体资源 (Links & Media)
+## 5. Links and Media
 
-**超链接：**
+**Links:**
 
-- 外部链接：[访问 GitHub](https://github.com)
-- 邮箱链接：[联系作者](mailto:author@example.com)
+- External link: [Visit GitHub](https://github.com)
+- Email link: [Contact the author](mailto:author@example.com)
 
-**本地图片加载测试：**
-（测试 Webview 是否打破 CSP 安全拦截，成功加载插件本地图片）
+**Local image loading test:**
+
+This verifies that the Webview resource handling and CSP allow plugin-local images to load successfully.
 
 <img src="../images/icon.png" width="80" alt="Icon">
 
 ---
 
-## 6. HTML 导出校验
+## 6. Regression Cases
 
-当您执行**一键导出 HTML**后，请检查上述所有的 **CSS 样式**、**代码高亮配色**、**数学公式字体** 以及 **Mermaid 图表 SVG** 是否被完整无误地内联打包到了独立 HTML 文件中。
+### YAML Front Matter Hidden
+
+This file includes YAML front matter at the top. The preview should hide that metadata block and render the visible document from the main title onward.
+
+### Duplicate Headings and TOC Deduplication
+
+#### Duplicate Heading
+
+First duplicate heading. The TOC slug should be `duplicate-heading`.
+
+#### Duplicate Heading
+
+Second duplicate heading. The TOC slug should be deduplicated, and clicking this TOC item should jump here instead of the previous duplicate heading.
+
+### Inline Markdown Heading Mapping
+
+#### **Bold Heading** Mapping
+
+This heading includes bold syntax. TOC clicks, heading anchors, and editor scroll sync should still work.
+
+#### Heading with `code`
+
+This heading includes inline code. TOC clicks, heading anchors, and editor scroll sync should still work.
+
+### Closing Hash Heading ##
+
+The source heading ends with `##`. The TOC text should display `Closing Hash Heading` without the trailing `##`.
+
+### Fake Heading Inside a Tilde Fence
+
+The `# Fake Heading` inside this `~~~` code fence should not appear in the TOC:
+
+~~~md
+# Fake Heading
+
+If this heading appears in the TOC, tilde fenced code block parsing has regressed.
+~~~
+
+### Special Characters & HTML Safety <Check>
+
+When exported to HTML, the `&` and `<Check>` in this heading should render as text rather than executable HTML.
+
+---
+
+## 7. HTML Export Checklist
+
+After running **Export HTML**, verify that **CSS styles**, **code highlighting colors**, **math formula fonts**, **Mermaid diagram SVG**, **local images**, **duplicate-heading TOC navigation**, and **special-character heading escaping** all work correctly.
