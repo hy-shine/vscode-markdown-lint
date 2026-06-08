@@ -69,9 +69,10 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
 
-  const tocHtml = config.showToc
-    ? `<nav class="export-toc">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${escapeAttribute(item.slug)}">${escapeHtml(item.text)}</a></div>`).join('\n')}</nav>`
+  const tocHtml = config.showToc && toc.length > 0
+    ? `<aside class="export-toc"><div class="export-toc-title">Table of contents</div><nav class="export-toc-list">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${escapeAttribute(item.slug)}">${escapeHtml(item.text)}</a></div>`).join('\n')}</nav></aside>`
     : '';
+  const bodyClass = `export-body theme-${themeMode} style-${config.previewStyle}${tocHtml ? '' : ' no-export-toc'}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -82,9 +83,11 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
   <style>${styleCss}</style>
 </head>
-<body class="export-body theme-${themeMode} style-${config.previewStyle}">
-  ${tocHtml}
-  <article class="preview-content">${finalHtmlContent}</article>
+<body class="${bodyClass}">
+  <div class="export-layout">
+    ${tocHtml}
+    <article class="preview-content export-article">${finalHtmlContent}</article>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", async function() {
@@ -141,35 +144,61 @@ function loadExportCss(context: vscode.ExtensionContext, themeMode: string, prev
     let css = fs.readFileSync(cssPath, 'utf-8');
     css += `
 .export-body {
-  margin: 0 auto;
-  max-width: 920px;
-  padding: 40px 24px;
+  margin: 0;
   overflow: auto;
   min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+.export-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 920px);
+  gap: 32px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 32px;
+}
+.export-body.no-export-toc .export-layout {
+  display: block;
+  max-width: 920px;
 }
 .export-toc {
-  margin-bottom: 2rem;
-  padding: 1rem 1.5rem;
-  border: 1px solid rgba(128,128,128,0.2);
-  border-radius: 8px;
+  position: sticky;
+  top: 32px;
+  align-self: start;
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  padding: 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.export-toc-title {
+  margin-bottom: 10px;
+  color: var(--text);
+  font-weight: 700;
+}
+.export-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.export-toc-item {
+  line-height: 1.35;
 }
 .export-toc-item a {
   color: inherit;
   text-decoration: none;
 }
 .export-toc-item a:hover {
+  color: var(--accent);
   text-decoration: underline;
 }
 .export-toc-item.level-1 { margin-left: 0; font-weight: 600; }
-.export-toc-item.level-2 { margin-left: 1rem; }
-.export-toc-item.level-3 { margin-left: 2rem; }
-.export-toc-item.level-4 { margin-left: 3rem; }
-.export-toc-item.level-5 { margin-left: 4rem; }
-.export-toc-item.level-6 { margin-left: 5rem; }
-.export-body {
-  background: var(--bg);
-  color: var(--text);
-}
+.export-toc-item.level-2 { margin-left: 0.75rem; }
+.export-toc-item.level-3 { margin-left: 1.5rem; }
+.export-toc-item.level-4 { margin-left: 2.25rem; }
+.export-toc-item.level-5 { margin-left: 3rem; }
+.export-toc-item.level-6 { margin-left: 3.75rem; }
 `;
     return css;
   } catch {
