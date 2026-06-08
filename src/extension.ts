@@ -7,7 +7,7 @@ export function activate(context: vscode.ExtensionContext): void {
   try {
     const panel = new MarkdownWorkbenchPanel(context);
     const formattingProvider = new MarkdownFormattingProvider();
-    let updateDebounce: NodeJS.Timeout | null = null;
+    const updateDebounces = new Map<string, NodeJS.Timeout>();
 
     context.subscriptions.push(
       panel,
@@ -39,31 +39,34 @@ export function activate(context: vscode.ExtensionContext): void {
         await panel.update(editor);
       }),
       vscode.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor || event.document !== editor.document) {
+        if (event.document.languageId !== 'markdown') {
           return;
         }
 
-        if (updateDebounce) {
-          clearTimeout(updateDebounce);
+        const key = event.document.uri.toString();
+        const existing = updateDebounces.get(key);
+        if (existing) {
+          clearTimeout(existing);
         }
-        updateDebounce = setTimeout(() => {
-          void panel.update(editor);
+        const timer = setTimeout(() => {
+          updateDebounces.delete(key);
+          void panel.updateDocument(event.document);
         }, 300);
+        updateDebounces.set(key, timer);
       }),
       vscode.workspace.onDidChangeConfiguration(async (event: vscode.ConfigurationChangeEvent) => {
         if (!event.affectsConfiguration('markdown-lint')) {
           return;
         }
 
-        await panel.update(vscode.window.activeTextEditor);
+        await panel.updateAll();
       }),
       vscode.window.onDidChangeTextEditorVisibleRanges((event: vscode.TextEditorVisibleRangesChangeEvent) => {
         if (event.textEditor.document.languageId !== 'markdown') {
           return;
         }
 
-        if (panel.isSyncingFromPreview()) {
+        if (panel.isSyncingFromPreview(event.textEditor.document)) {
           return;
         }
 
@@ -75,7 +78,7 @@ export function activate(context: vscode.ExtensionContext): void {
         }
 
         const topLine = ranges[0].start.line;
-        panel.postVisibleLineRange(topLine);
+        panel.postVisibleLineRange(event.textEditor.document, topLine);
       }),
     );
 

@@ -164,6 +164,12 @@ window.addEventListener('message', (event) => {
     return;
   }
 
+  if (message.type === 'scrollToAnchor') {
+    const target = document.getElementById(message.value);
+    target?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    return;
+  }
+
   if (message.type !== 'render') {
     return;
   }

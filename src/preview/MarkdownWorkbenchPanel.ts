@@ -6,85 +6,224 @@ import { renderMarkdown } from '../core/markdown';
 import { extractToc } from '../core/toc';
 import { PreviewState, PreviewStyle, ThemeMode } from '../types';
 
+interface PreviewEntry {
+  panel: vscode.WebviewPanel;
+  sourceUri: vscode.Uri;
+  isScrollingFromPreview: boolean;
+  isResizing: boolean;
+  resizeTimer?: ReturnType<typeof setTimeout>;
+  scrollSyncTimer?: ReturnType<typeof setTimeout>;
+}
+
 export class MarkdownWorkbenchPanel implements vscode.Disposable {
-  private panel: vscode.WebviewPanel | undefined;
-  private sourceUri: vscode.Uri | undefined;
+  private readonly previews = new Map<string, PreviewEntry>();
+  private activeSourceUri: vscode.Uri | undefined;
   private readonly disposables: vscode.Disposable[] = [];
-  private isScrollingFromPreview = false;
-  private isResizing = false;
-  private resizeTimer: ReturnType<typeof setTimeout> | undefined;
-  private scrollSyncTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   public reveal(editor: vscode.TextEditor): void {
-    this.sourceUri = editor.document.uri;
-    if (!this.panel) {
-      this.panel = vscode.window.createWebviewPanel(
-        'markdown-lint.preview',
-        'Markdown Lint',
-        vscode.ViewColumn.Beside,
-        {
-          enableScripts: true,
-          localResourceRoots: [
-            vscode.Uri.joinPath(this.context.extensionUri, 'media'),
-            vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
-            vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
-          ],
-          retainContextWhenHidden: true,
-        },
-      );
-
-      this.panel.iconPath = {
-        light: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview.svg'),
-        dark: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview-dark.svg')
-      };
-
-      this.panel.onDidDispose(() => {
-        this.panel = undefined;
-      }, null, this.disposables);
-
-      this.panel.webview.onDidReceiveMessage(async (message: WebviewMessage) => {
-        await this.handleMessage(message);
-      }, null, this.disposables);
-
-      this.panel.onDidChangeViewState(() => {
-        this.notifyResize();
-      }, null, this.disposables);
-
-      this.panel.webview.html = this.getHtml(this.panel.webview);
+    if (editor.document.languageId !== 'markdown') {
+      return;
     }
 
-    this.panel.title = editor.document.fileName.split(/[\\/]/).pop() ?? 'Untitled';
-    this.panel.reveal(vscode.ViewColumn.Beside);
-    void this.update(editor);
+    void this.openOrRevealPreview(editor.document.uri, undefined, editor.document);
   }
 
   public async update(editor: vscode.TextEditor | undefined): Promise<void> {
-    if (!this.panel) {
+    if (editor?.document.languageId === 'markdown') {
+      const entry = this.getEntry(editor.document.uri);
+      if (entry) {
+        await this.updateEntry(entry, editor.document);
+      }
       return;
     }
 
-    const document = await this.resolveDocument(editor);
-    if (!document || document.languageId !== 'markdown') {
+    const entry = this.activeSourceUri ? this.getEntry(this.activeSourceUri) : undefined;
+    if (entry) {
+      await this.updateEntry(entry);
+    }
+  }
+
+  public async updateDocument(document: vscode.TextDocument): Promise<void> {
+    if (document.languageId !== 'markdown') {
       return;
     }
 
-    const markdown = document.getText();
+    const entry = this.getEntry(document.uri);
+    if (entry) {
+      await this.updateEntry(entry, document);
+    }
+  }
+
+  public async updateAll(): Promise<void> {
+    await Promise.all(Array.from(this.previews.values()).map((entry) => this.updateEntry(entry)));
+  }
+
+  public postVisibleLineRange(document: vscode.TextDocument, line: number): void {
+    const entry = this.getEntry(document.uri);
+    if (!entry || entry.isResizing) {
+      return;
+    }
+
+    if (entry.scrollSyncTimer) {
+      clearTimeout(entry.scrollSyncTimer);
+    }
+    entry.scrollSyncTimer = setTimeout(() => {
+      if (!entry.isResizing) {
+        void entry.panel.webview.postMessage({ type: 'scrollToLine', value: line });
+      }
+    }, 50);
+  }
+
+  public notifyResize(): void {
+    for (const entry of this.previews.values()) {
+      this.notifyResizeEntry(entry);
+    }
+  }
+
+  public async formatActiveDocument(): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.languageId === 'markdown') {
+      await this.formatDocument(editor.document);
+      return;
+    }
+
+    const entry = this.activeSourceUri ? this.getEntry(this.activeSourceUri) : undefined;
+    if (!entry) {
+      return;
+    }
+
+    const document = await vscode.workspace.openTextDocument(entry.sourceUri);
+    await this.formatDocument(document);
+  }
+
+  public dispose(): void {
+    while (this.disposables.length > 0) {
+      this.disposables.pop()?.dispose();
+    }
+
+    for (const entry of this.previews.values()) {
+      entry.panel.dispose();
+    }
+    this.previews.clear();
+  }
+
+  public isSyncingFromPreview(document?: vscode.TextDocument): boolean {
+    if (document) {
+      return this.getEntry(document.uri)?.isScrollingFromPreview ?? false;
+    }
+
+    return Array.from(this.previews.values()).some((entry) => entry.isScrollingFromPreview);
+  }
+
+  private async openOrRevealPreview(
+    sourceUri: vscode.Uri,
+    fragment?: string,
+    knownDocument?: vscode.TextDocument,
+  ): Promise<void> {
+    const document = knownDocument ?? await vscode.workspace.openTextDocument(sourceUri);
+    if (document.languageId !== 'markdown') {
+      return;
+    }
+
+    const entry = this.getOrCreateEntry(document.uri);
+    this.activeSourceUri = document.uri;
+    entry.panel.title = document.fileName.split(/[\\/]/).pop() ?? 'Untitled';
+    entry.panel.reveal(vscode.ViewColumn.Beside);
+
+    await this.updateEntry(entry, document);
+
+    if (fragment) {
+      await entry.panel.webview.postMessage({ type: 'scrollToAnchor', value: decodeFragment(fragment) });
+    }
+  }
+
+  private getOrCreateEntry(sourceUri: vscode.Uri): PreviewEntry {
+    const existing = this.getEntry(sourceUri);
+    if (existing) {
+      return existing;
+    }
+
+    return this.createEntry(sourceUri);
+  }
+
+  private getEntry(sourceUri: vscode.Uri): PreviewEntry | undefined {
+    return this.previews.get(getPreviewKey(sourceUri));
+  }
+
+  private createEntry(sourceUri: vscode.Uri): PreviewEntry {
+    const panel = vscode.window.createWebviewPanel(
+      'markdown-lint.preview',
+      sourceUri.fsPath.split(/[\\/]/).pop() ?? 'Markdown Lint',
+      vscode.ViewColumn.Beside,
+      {
+        enableScripts: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(this.context.extensionUri, 'media'),
+          vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
+          vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
+        ],
+        retainContextWhenHidden: true,
+      },
+    );
+
+    const entry: PreviewEntry = {
+      panel,
+      sourceUri,
+      isScrollingFromPreview: false,
+      isResizing: false,
+    };
+
+    panel.iconPath = {
+      light: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview.svg'),
+      dark: vscode.Uri.joinPath(this.context.extensionUri, 'images', 'open-preview-dark.svg')
+    };
+
+    this.previews.set(getPreviewKey(sourceUri), entry);
+
+    panel.onDidDispose(() => {
+      this.previews.delete(getPreviewKey(entry.sourceUri));
+      if (this.activeSourceUri?.toString() === entry.sourceUri.toString()) {
+        this.activeSourceUri = this.previews.values().next().value?.sourceUri;
+      }
+    }, null, this.disposables);
+
+    panel.webview.onDidReceiveMessage(async (message: WebviewMessage) => {
+      await this.handleMessage(entry, message);
+    }, null, this.disposables);
+
+    panel.onDidChangeViewState(() => {
+      this.notifyResizeEntry(entry);
+    }, null, this.disposables);
+
+    panel.webview.html = this.getHtml(panel.webview);
+
+    return entry;
+  }
+
+  private async updateEntry(entry: PreviewEntry, document?: vscode.TextDocument): Promise<void> {
+    const resolvedDocument = document ?? await vscode.workspace.openTextDocument(entry.sourceUri);
+    if (resolvedDocument.languageId !== 'markdown') {
+      return;
+    }
+
+    entry.sourceUri = resolvedDocument.uri;
+    const markdown = resolvedDocument.getText();
     const toc = extractToc(markdown);
-    const baseUri = vscode.Uri.joinPath(document.uri, '..');
+    const baseUri = vscode.Uri.joinPath(resolvedDocument.uri, '..');
     const localResourceRoots = [
       vscode.Uri.joinPath(this.context.extensionUri, 'media'),
       vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
       vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
       baseUri,
     ];
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(resolvedDocument.uri);
     if (workspaceFolder) {
       localResourceRoots.push(workspaceFolder.uri);
     }
 
-    this.panel.webview.options = {
+    entry.panel.webview.options = {
       enableScripts: true,
       localResourceRoots,
     };
@@ -92,57 +231,40 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       markdown,
       toc,
       baseUri,
-      (uri) => this.panel!.webview.asWebviewUri(uri),
+      (uri) => entry.panel.webview.asWebviewUri(uri),
     );
     const config = getWorkbenchConfig();
 
     const state: PreviewState = {
-      title: document.fileName.split(/[\\/]/).pop() ?? 'Untitled.md',
+      title: resolvedDocument.fileName.split(/[\\/]/).pop() ?? 'Untitled.md',
       html: rendered.html,
       rawText: markdown,
       toc,
       themeMode: config.themeMode,
       previewStyle: config.previewStyle,
       tocVisible: config.showToc,
-      baseUrl: this.panel.webview.asWebviewUri(baseUri).toString() + '/',
+      baseUrl: entry.panel.webview.asWebviewUri(baseUri).toString() + '/',
     };
 
-    await this.panel.webview.postMessage({ type: 'render', payload: state });
+    await entry.panel.webview.postMessage({ type: 'render', payload: state });
   }
 
-  public postVisibleLineRange(line: number): void {
-    if (!this.panel || this.isResizing) {
-      return;
+  private notifyResizeEntry(entry: PreviewEntry): void {
+    entry.isResizing = true;
+    if (entry.resizeTimer) {
+      clearTimeout(entry.resizeTimer);
     }
-
-    if (this.scrollSyncTimer) {
-      clearTimeout(this.scrollSyncTimer);
-    }
-    this.scrollSyncTimer = setTimeout(() => {
-      if (!this.isResizing) {
-        void this.panel?.webview.postMessage({ type: 'scrollToLine', value: line });
-      }
-    }, 50);
-  }
-
-  public notifyResize(): void {
-    this.isResizing = true;
-    if (this.resizeTimer) {
-      clearTimeout(this.resizeTimer);
-    }
-    this.resizeTimer = setTimeout(() => {
-      this.isResizing = false;
+    entry.resizeTimer = setTimeout(() => {
+      entry.isResizing = false;
     }, 300);
   }
 
-  public async formatActiveDocument(): Promise<void> {
-    const document = await this.resolveDocument(vscode.window.activeTextEditor);
-    if (!document || document.languageId !== 'markdown') {
+  private async formatDocument(document: vscode.TextDocument): Promise<void> {
+    if (document.languageId !== 'markdown') {
       return;
     }
 
     const editor = await this.resolveEditor(document);
-
     const filePath = document.uri.scheme === 'file' ? document.uri.fsPath : undefined;
     const formatted = await formatMarkdownDocument(document.getText(), filePath);
     const fullRange = new vscode.Range(
@@ -154,40 +276,26 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       editBuilder.replace(fullRange, formatted);
     });
 
-    await this.update(editor);
+    await this.updateDocument(document);
   }
 
-  public dispose(): void {
-    while (this.disposables.length > 0) {
-      this.disposables.pop()?.dispose();
-    }
-    this.panel?.dispose();
-  }
-
-  public isSyncingFromPreview(): boolean {
-    return this.isScrollingFromPreview;
-  }
-
-  private async handleMessage(message: WebviewMessage): Promise<void> {
+  private async handleMessage(entry: PreviewEntry, message: WebviewMessage): Promise<void> {
     switch (message.type) {
       case 'setThemeMode':
         await updateThemeMode(message.value);
-        await this.update(undefined);
+        await this.updateAll();
         return;
       case 'setPreviewStyle':
         await updatePreviewStyle(message.value);
-        await this.update(undefined);
+        await this.updateAll();
         return;
       case 'toggleToc':
         await updateShowToc(message.value);
-        await this.update(undefined);
+        await this.updateAll();
         return;
       case 'revealLine': {
-        if (!this.sourceUri) {
-          return;
-        }
         const editor = vscode.window.visibleTextEditors.find(
-          (e) => e.document.uri.toString() === this.sourceUri?.toString(),
+          (e) => e.document.uri.toString() === entry.sourceUri.toString(),
         );
         if (!editor) {
           return;
@@ -198,11 +306,8 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         return;
       }
       case 'scrollToLine': {
-        if (!this.sourceUri) {
-          return;
-        }
         const editor = vscode.window.visibleTextEditors.find(
-          (e) => e.document.uri.toString() === this.sourceUri?.toString(),
+          (e) => e.document.uri.toString() === entry.sourceUri.toString(),
         );
         if (!editor) {
           return;
@@ -213,88 +318,95 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         return;
       }
       case 'syncEditorScroll': {
-        if (!this.sourceUri) {
-          return;
-        }
         const editor = vscode.window.visibleTextEditors.find(
-          (e) => e.document.uri.toString() === this.sourceUri?.toString(),
+          (e) => e.document.uri.toString() === entry.sourceUri.toString(),
         );
         if (!editor) {
           return;
         }
-        this.isScrollingFromPreview = true;
+        entry.isScrollingFromPreview = true;
         const line = Math.min(message.value, editor.document.lineCount - 1);
         const position = new vscode.Position(line, 0);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
-        setTimeout(() => { this.isScrollingFromPreview = false; }, 150);
+        setTimeout(() => { entry.isScrollingFromPreview = false; }, 150);
         return;
       }
-      case 'formatDocument':
-        await this.formatActiveDocument();
+      case 'formatDocument': {
+        const document = await vscode.workspace.openTextDocument(entry.sourceUri);
+        await this.formatDocument(document);
         return;
+      }
       case 'refreshPreview':
-        await this.update(undefined);
+        await this.updateEntry(entry);
         return;
       case 'exportHtml':
-        if (this.sourceUri) {
-          await exportHtml(this.sourceUri, this.context);
-        }
+        await exportHtml(entry.sourceUri, this.context);
         return;
-      case 'openLink': {
-        const href = message.value;
-        // Network links: open in browser
-        if (/^https?:/i.test(href)) {
-          await vscode.env.openExternal(vscode.Uri.parse(href));
-          return;
-        }
-        // Mailto links: let system handle
-        if (/^mailto:/i.test(href)) {
-          await vscode.env.openExternal(vscode.Uri.parse(href));
-          return;
-        }
-        // Local files
-        if (!this.sourceUri) {
-          return;
-        }
-        const linkUri = vscode.Uri.joinPath(vscode.Uri.joinPath(this.sourceUri, '..'), href);
-        try {
-          await vscode.workspace.fs.stat(linkUri);
-        } catch {
-          void vscode.window.showWarningMessage(`Linked file not found: ${href}`);
-          return;
-        }
-        try {
-          const doc = await vscode.workspace.openTextDocument(linkUri);
-          if (doc.languageId === 'markdown') {
-            this.sourceUri = doc.uri;
-            if (this.panel) {
-              this.panel.title = doc.fileName.split(/[\\/]/).pop() ?? 'Untitled';
-              await this.update(undefined);
-            }
-          } else {
-            await vscode.window.showTextDocument(doc);
-          }
-        } catch {
-          await vscode.env.openExternal(linkUri);
-        }
+      case 'openLink':
+        await this.openLink(entry, message.value);
         return;
-      }
       default:
         return;
     }
   }
 
-  private async resolveDocument(editor: vscode.TextEditor | undefined): Promise<vscode.TextDocument | undefined> {
-    if (editor && editor.document.languageId === 'markdown') {
-      this.sourceUri = editor.document.uri;
-      return editor.document;
+  private async openLink(entry: PreviewEntry, href: string): Promise<void> {
+    if (/^https?:/i.test(href)) {
+      await vscode.env.openExternal(vscode.Uri.parse(href));
+      return;
     }
 
-    if (!this.sourceUri) {
-      return undefined;
+    if (/^mailto:/i.test(href)) {
+      await vscode.env.openExternal(vscode.Uri.parse(href));
+      return;
     }
 
-    return vscode.workspace.openTextDocument(this.sourceUri);
+    if (/^file:/i.test(href)) {
+      await this.openFileUriLink(href);
+      return;
+    }
+
+    const { path, fragment } = splitLinkTarget(href);
+    if (!path) {
+      return;
+    }
+
+    const baseUri = vscode.Uri.joinPath(entry.sourceUri, '..');
+    const linkUri = resolveLinkedUri(baseUri, decodeLinkPath(path));
+    try {
+      await vscode.workspace.fs.stat(linkUri);
+    } catch {
+      void vscode.window.showWarningMessage(`Linked file not found: ${href}`);
+      return;
+    }
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(linkUri);
+      if (doc.languageId === 'markdown') {
+        await this.openOrRevealPreview(doc.uri, fragment, doc);
+      } else {
+        await vscode.window.showTextDocument(doc);
+      }
+    } catch {
+      await vscode.env.openExternal(linkUri);
+    }
+  }
+
+  private async openFileUriLink(href: string): Promise<void> {
+    const uri = vscode.Uri.parse(href);
+    const fragment = uri.fragment || undefined;
+    const targetUri = uri.with({ fragment: '' });
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(targetUri);
+      if (doc.languageId === 'markdown') {
+        await this.openOrRevealPreview(doc.uri, fragment, doc);
+      } else {
+        await vscode.window.showTextDocument(doc);
+      }
+    } catch {
+      await vscode.env.openExternal(uri);
+    }
   }
 
   private async resolveEditor(document: vscode.TextDocument): Promise<vscode.TextEditor> {
@@ -422,6 +534,43 @@ type WebviewMessage =
   | { type: 'refreshPreview' }
   | { type: 'exportHtml' }
   | { type: 'openLink'; value: string };
+
+function getPreviewKey(uri: vscode.Uri): string {
+  return uri.toString();
+}
+
+function splitLinkTarget(href: string): { path: string; fragment?: string } {
+  const hashIndex = href.indexOf('#');
+  if (hashIndex === -1) {
+    return { path: href };
+  }
+
+  return {
+    path: href.slice(0, hashIndex),
+    fragment: href.slice(hashIndex + 1) || undefined,
+  };
+}
+
+function decodeLinkPath(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
+function decodeFragment(fragment: string): string {
+  try {
+    return decodeURIComponent(fragment);
+  } catch {
+    return fragment;
+  }
+}
+
+function resolveLinkedUri(baseUri: vscode.Uri, linkPath: string): vscode.Uri {
+  const segments = linkPath.split('/').filter((segment) => segment.length > 0);
+  return vscode.Uri.joinPath(baseUri, ...segments);
+}
 
 function getNonce(): string {
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
