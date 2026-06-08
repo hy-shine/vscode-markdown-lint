@@ -222,6 +222,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     if (workspaceFolder) {
       localResourceRoots.push(workspaceFolder.uri);
     }
+    localResourceRoots.push(...getReferencedLocalImageRoots(markdown, baseUri));
 
     entry.panel.webview.options = {
       enableScripts: true,
@@ -581,6 +582,31 @@ function resolveLinkedUri(baseUri: vscode.Uri, linkPath: string): vscode.Uri {
 
 function isPreviewableMarkdown(document: vscode.TextDocument): boolean {
   return document.languageId === 'markdown';
+}
+
+function getReferencedLocalImageRoots(markdown: string, baseUri: vscode.Uri): vscode.Uri[] {
+  const roots = new Map<string, vscode.Uri>();
+  const addRoot = (src: string) => {
+    if (!src || /^(https?:|data:|#)/i.test(src)) {
+      return;
+    }
+
+    const imageUri = /^file:/i.test(src)
+      ? vscode.Uri.parse(src)
+      : resolveLinkedUri(baseUri, decodeLinkPath(src));
+    const root = vscode.Uri.joinPath(imageUri, '..');
+    roots.set(root.toString(), root);
+  };
+
+  for (const match of markdown.matchAll(/!\[[^\]]*\]\(([^)\s]+)(?:\s+['"][^'"]*['"])?\)/g)) {
+    addRoot(match[1]);
+  }
+
+  for (const match of markdown.matchAll(/<img\s+[^>]*?src=["']([^"']+)["'][^>]*>/gi)) {
+    addRoot(match[1]);
+  }
+
+  return Array.from(roots.values());
 }
 
 function getNonce(): string {

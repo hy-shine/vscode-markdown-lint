@@ -196,6 +196,7 @@ window.addEventListener('message', (event) => {
   renderMermaidDiagrams();
   setupCodeCopyButtons();
   setupCodeFoldButtons();
+  setupImageLightbox();
   updateActiveTocLink();
 });
 
@@ -876,6 +877,81 @@ async function loadMermaid() {
     script.onerror = () => resolve(null);
     document.head.appendChild(script);
   });
+}
+
+function setupImageLightbox() {
+  const images = previewContent.querySelectorAll('img');
+  for (const img of images) {
+    if (!img.getAttribute('src') || img.closest('a')) {
+      continue;
+    }
+
+    img.classList.add('preview-image-lightbox-trigger');
+    img.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openImageLightbox(img.currentSrc || img.src, img.alt || '');
+    });
+  }
+}
+
+function openImageLightbox(src, alt) {
+  const lightbox = ensureImageLightbox();
+  const image = lightbox.querySelector('.image-lightbox-image');
+  if (!image) {
+    return;
+  }
+
+  image.src = src;
+  image.alt = alt;
+  lightbox.classList.add('is-open');
+  document.body.classList.add('has-image-lightbox');
+}
+
+function closeImageLightbox() {
+  const lightbox = document.getElementById('image-lightbox');
+  if (!lightbox) {
+    return;
+  }
+
+  const image = lightbox.querySelector('.image-lightbox-image');
+  if (image) {
+    image.removeAttribute('src');
+    image.removeAttribute('alt');
+  }
+  lightbox.classList.remove('is-open');
+  document.body.classList.remove('has-image-lightbox');
+}
+
+function ensureImageLightbox() {
+  let lightbox = document.getElementById('image-lightbox');
+  if (lightbox) {
+    return lightbox;
+  }
+
+  lightbox = document.createElement('div');
+  lightbox.id = 'image-lightbox';
+  lightbox.className = 'image-lightbox';
+  lightbox.innerHTML = `
+    <button class="image-lightbox-close" type="button" aria-label="Close image preview">×</button>
+    <img class="image-lightbox-image" alt="">
+  `;
+
+  lightbox.addEventListener('click', (e) => {
+    const target = e.target;
+    if (target === lightbox || target?.closest?.('.image-lightbox-close')) {
+      closeImageLightbox();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeImageLightbox();
+    }
+  });
+
+  document.body.appendChild(lightbox);
+  return lightbox;
 }
 
 function setupCodeCopyButtons() {
