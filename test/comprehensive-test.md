@@ -84,7 +84,7 @@ func main() {
 ```json
 {
   "name": "vscode-mdlint",
-  "version": "0.4.0-beta.1",
+  "version": "0.4.0",
   "publisher": "hy-shine"
 }
 ```

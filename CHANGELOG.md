@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0] - 2026-06-08
+
+### Added
+- Add click-to-enlarge lightbox for preview images
+- Render Mermaid diagrams in exported HTML
+
+### Changed
+- Move exported document table of contents to side navigation
+- Open Markdown preview links in separate preview panels
+- Simplify preview settings menu labels
+
+### Fixed
+- Fix extension activation crash after the 0.3.0 release
+- Load local images referenced from Markdown and raw HTML image tags
+- Preserve editor tabs when opening local non-Markdown files
+- Open only Markdown links inside preview panels
+- Normalize heading text for table of contents matching
+- Respect project Prettier configuration when formatting Markdown
+- Harden TOC metadata mapping and export handling
+
 ## [0.3.0] - 2026-04-27
 
 ### Added
