@@ -46,7 +46,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   }
 
   public async updateDocument(document: vscode.TextDocument): Promise<void> {
-    if (document.languageId !== 'markdown') {
+    if (!isPreviewableMarkdown(document)) {
       return;
     }
 
@@ -123,7 +123,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     knownDocument?: vscode.TextDocument,
   ): Promise<void> {
     const document = knownDocument ?? await vscode.workspace.openTextDocument(sourceUri);
-    if (document.languageId !== 'markdown') {
+    if (!isPreviewableMarkdown(document)) {
       return;
     }
 
@@ -204,7 +204,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   private async updateEntry(entry: PreviewEntry, document?: vscode.TextDocument): Promise<void> {
     const resolvedDocument = document ?? await vscode.workspace.openTextDocument(entry.sourceUri);
-    if (resolvedDocument.languageId !== 'markdown') {
+    if (!isPreviewableMarkdown(resolvedDocument)) {
       return;
     }
 
@@ -382,7 +382,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
     try {
       const doc = await vscode.workspace.openTextDocument(linkUri);
-      if (doc.languageId === 'markdown') {
+      if (isPreviewableMarkdown(doc)) {
         await this.openOrRevealPreview(doc.uri, fragment, doc);
       } else {
         await vscode.window.showTextDocument(doc);
@@ -399,7 +399,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
     try {
       const doc = await vscode.workspace.openTextDocument(targetUri);
-      if (doc.languageId === 'markdown') {
+      if (isPreviewableMarkdown(doc)) {
         await this.openOrRevealPreview(doc.uri, fragment, doc);
       } else {
         await vscode.window.showTextDocument(doc);
@@ -570,6 +570,10 @@ function decodeFragment(fragment: string): string {
 function resolveLinkedUri(baseUri: vscode.Uri, linkPath: string): vscode.Uri {
   const segments = linkPath.split('/').filter((segment) => segment.length > 0);
   return vscode.Uri.joinPath(baseUri, ...segments);
+}
+
+function isPreviewableMarkdown(document: vscode.TextDocument): boolean {
+  return document.languageId === 'markdown';
 }
 
 function getNonce(): string {
