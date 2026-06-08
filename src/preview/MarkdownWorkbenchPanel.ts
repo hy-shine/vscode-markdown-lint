@@ -357,7 +357,6 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         <div class="floating-menu-header">
           <div class="floating-menu-eyebrow">Preview</div>
         </div>
-        <div class="floating-menu-section-label">Appearance</div>
         <button class="floating-menu-group" data-group="theme" type="button" aria-expanded="false">
           <span class="floating-menu-group-icon" aria-hidden="true">◐</span>
           <span class="floating-menu-group-copy">
@@ -388,8 +387,6 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <button class="floating-menu-item" data-value="paper">Paper</button>
           <button class="floating-menu-item" data-value="typora">Typora</button>
         </div>
-        <div class="floating-menu-divider"></div>
-        <div class="floating-menu-section-label">Actions</div>
         <button class="floating-menu-action" id="format-button" type="button">
           <span class="floating-menu-action-icon" aria-hidden="true">⌘</span>
           <span class="floating-menu-action-copy">

@@ -844,8 +844,7 @@ body.theme-light .hljs-variable.language {
 
 .outline-panel-title {
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   color: var(--muted);
   font-weight: 600;
   padding: 12px 14px 6px;
@@ -2210,10 +2209,9 @@ body.theme-auto.style-typora .outline-panel {
 
 .floating-menu-eyebrow {
   margin-bottom: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--accent);
 }
 
@@ -2221,15 +2219,6 @@ body.theme-auto.style-typora .outline-panel {
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
-}
-
-.floating-menu-section-label {
-  padding: 4px 6px 6px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .floating-menu-group {
@@ -2353,12 +2342,6 @@ body.theme-auto.style-typora .outline-panel {
   border-color: var(--accent);
   font-weight: 600;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.floating-menu-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 10px 4px 8px;
 }
 
 .floating-menu-action {
