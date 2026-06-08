@@ -385,7 +385,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       if (isPreviewableMarkdown(doc)) {
         await this.openOrRevealPreview(doc.uri, fragment, doc);
       } else {
-        await vscode.window.showTextDocument(doc);
+        await this.openNonMarkdownDocument(doc);
       }
     } catch {
       await vscode.env.openExternal(linkUri);
@@ -402,11 +402,18 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       if (isPreviewableMarkdown(doc)) {
         await this.openOrRevealPreview(doc.uri, fragment, doc);
       } else {
-        await vscode.window.showTextDocument(doc);
+        await this.openNonMarkdownDocument(doc);
       }
     } catch {
       await vscode.env.openExternal(uri);
     }
+  }
+
+  private async openNonMarkdownDocument(document: vscode.TextDocument): Promise<void> {
+    await vscode.window.showTextDocument(document, {
+      preview: false,
+      preserveFocus: false,
+    });
   }
 
   private async resolveEditor(document: vscode.TextDocument): Promise<vscode.TextEditor> {
