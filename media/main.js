@@ -22,6 +22,7 @@ let currentState = {
 };
 
 const scrollSync = createScrollSyncGate();
+let mermaidLoadPromise = null;
 
 // --- Outline popup toggle ---
 outlineTrigger.addEventListener('click', (e) => {
@@ -341,7 +342,7 @@ async function renderMermaidDiagrams() {
 
   const mermaid = await loadMermaid();
   if (!mermaid) {
-    replaceMermaidBlocksWithError(mermaidBlocks, 'Mermaid failed to load');
+    replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer failed to load.');
     return;
   }
 
@@ -353,7 +354,7 @@ async function renderMermaidDiagrams() {
       mermaid.initialize(getFallbackMermaidConfig());
     } catch (fallbackError) {
       console.error('Mermaid fallback initialize failed.', fallbackError);
-      replaceMermaidBlocksWithError(mermaidBlocks, 'Mermaid rendering unavailable');
+      replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer initialization failed.');
       return;
     }
   }
@@ -381,11 +382,7 @@ async function renderMermaidDiagrams() {
       setupMermaidInteraction(container);
     } catch (error) {
       console.error('Mermaid render failed.', error);
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'mermaid-error';
-      const msg = error?.message || error?.str || String(error);
-      errorDiv.innerHTML = `<strong>Mermaid rendering failed</strong><br><span class="mermaid-error-detail">${escapeMermaidHtml(msg)}</span>`;
-      pre.replaceWith(errorDiv);
+      pre.replaceWith(createMermaidErrorElement(error?.message || error?.str || String(error)));
     }
   }
 }
@@ -750,11 +747,34 @@ function replaceMermaidBlocksWithError(blocks, message) {
     if (!pre) {
       continue;
     }
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'mermaid-error';
-    errorDiv.textContent = message;
-    pre.replaceWith(errorDiv);
+    pre.replaceWith(createMermaidErrorElement(message));
   }
+}
+
+function createMermaidErrorElement(detail) {
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'mermaid-error';
+
+  const title = document.createElement('strong');
+  title.textContent = 'Mermaid diagram unavailable';
+  errorDiv.appendChild(title);
+
+  const message = formatMermaidErrorDetail(detail);
+  if (message) {
+    const detailEl = document.createElement('span');
+    detailEl.className = 'mermaid-error-detail';
+    detailEl.textContent = message;
+    errorDiv.appendChild(detailEl);
+  }
+
+  return errorDiv;
+}
+
+function formatMermaidErrorDetail(detail) {
+  return String(detail || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
 }
 
 const SVG_ZOOM_IN  = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>';
@@ -898,16 +918,16 @@ function openMermaidFullscreen(container) {
   setupMermaidInteraction(clone);
 }
 
-function escapeMermaidHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 async function loadMermaid() {
   if (window.mermaid) {
     return window.mermaid;
   }
 
-  return new Promise((resolve) => {
+  if (mermaidLoadPromise) {
+    return mermaidLoadPromise;
+  }
+
+  mermaidLoadPromise = new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = window.MDLINT_MERMAID_URI || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
     script.onload = () => {
@@ -917,9 +937,14 @@ async function loadMermaid() {
         resolve(null);
       }
     };
-    script.onerror = () => resolve(null);
+    script.onerror = () => {
+      mermaidLoadPromise = null;
+      resolve(null);
+    };
     document.head.appendChild(script);
   });
+
+  return mermaidLoadPromise;
 }
 
 function setupImageLightbox() {

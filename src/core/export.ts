@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
-import { convertMermaidCodeBlocksForExport } from './exportMarkup';
+import { buildMermaidExportRuntime, convertMermaidCodeBlocksForExport } from './exportMarkup';
 import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
 
@@ -68,6 +68,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
+  const mermaidRuntime = buildMermaidExportRuntime(themeMode);
 
   const tocHtml = config.showToc && toc.length > 0
     ? `<aside class="export-toc"><div class="export-toc-title">Table of contents</div><nav class="export-toc-list">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${escapeAttribute(item.slug)}">${escapeHtml(item.text)}</a></div>`).join('\n')}</nav></aside>`
@@ -89,14 +90,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     <article class="preview-content export-article">${finalHtmlContent}</article>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", async function() {
-      if (typeof mermaid !== 'undefined') {
-        mermaid.initialize({ startOnLoad: false, theme: '${themeMode === 'dark' ? 'dark' : 'default'}' });
-        await mermaid.run({ querySelector: '.mermaid' });
-      }
-    });
-  </script>
+  <script>${mermaidRuntime}</script>
 </body>
 </html>`;
 
