@@ -4,6 +4,7 @@ import katex from 'katex';
 import { marked, TokenizerAndRendererExtension, Tokens } from 'marked';
 import { TocItem } from '../types';
 import { resolveHeadingMeta } from './headings';
+import { resolveReference } from './localPaths';
 
 export interface RenderedMarkdown {
   html: string;
@@ -97,11 +98,7 @@ export function renderMarkdown(
     return `<pre${foldAttrs}>${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(language)}">${lines}</code></pre>`;
   };
   renderer.image = ({ href, title, text }: Tokens.Image) => {
-    let src = href;
-    if (!/^(https?:|data:|#)/i.test(src) && baseUri) {
-      const imageUri = vscode.Uri.joinPath(baseUri, src);
-      src = resolveImageUri ? resolveImageUri(imageUri).toString() : imageUri.toString();
-    }
+    const src = resolveImageSource(href, baseUri, resolveImageUri);
     const titleAttr = title ? ` title="${escapeAttribute(title)}"` : '';
     return `<img src="${escapeAttribute(src)}" alt="${escapeAttribute(text)}"${titleAttr}>`;
   };
@@ -111,19 +108,31 @@ export function renderMarkdown(
   
   // Rewrite raw HTML <img src="..."> tags to resolve local relative paths
   finalHtml = finalHtml.replace(/<img\s+([^>]*?)src=["']([^"']+)["']([^>]*)>/gi, (match, before, src, after) => {
-    if (!/^(https?:|data:|#)/i.test(src) && baseUri) {
-      // Handle relative paths manually since joinPath doesn't always resolve '..' perfectly
-      // Better to resolve relative to baseUri path
-      const imageUri = vscode.Uri.file(vscode.Uri.joinPath(baseUri, src).fsPath);
-      const webviewSrc = resolveImageUri ? resolveImageUri(imageUri).toString() : imageUri.toString();
-      return `<img ${before}src="${webviewSrc}"${after}>`;
-    }
-    return match;
+    const resolved = resolveImageSource(src, baseUri, resolveImageUri);
+    return `<img ${before}src="${escapeAttribute(resolved)}"${after}>`;
   });
 
   return {
     html: finalHtml,
   };
+}
+
+function resolveImageSource(
+  href: string,
+  baseUri?: vscode.Uri,
+  resolveImageUri?: (uri: vscode.Uri) => vscode.Uri,
+): string {
+  if (!baseUri) {
+    return href;
+  }
+
+  const resolved = resolveReference(baseUri.toString(), href);
+  if (resolved.type !== 'local') {
+    return href;
+  }
+
+  const imageUri = vscode.Uri.parse(resolved.uri);
+  return resolveImageUri ? resolveImageUri(imageUri).toString() : imageUri.toString();
 }
 
 // Common shell commands not in highlight.js built_in list
