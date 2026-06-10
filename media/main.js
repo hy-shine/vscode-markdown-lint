@@ -21,10 +21,7 @@ let currentState = {
   previewStyle: 'default',
 };
 
-let isScrollingFromEditor = false;
-let scrollSyncDebounce = null;
-let suppressScrollSync = false;
-let suppressScrollSyncTimer = null;
+const scrollSync = createScrollSyncGate();
 
 // --- Outline popup toggle ---
 outlineTrigger.addEventListener('click', (e) => {
@@ -145,7 +142,8 @@ window.addEventListener('message', (event) => {
   const message = event.data;
 
   if (message.type === 'scrollToLine') {
-    isScrollingFromEditor = true;
+    scrollSync.block('editor', 220);
+    scrollSync.clearDebounce();
     const line = message.value;
     const headings = previewContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
     let target = null;
@@ -160,11 +158,12 @@ window.addEventListener('message', (event) => {
     if (target) {
       target.scrollIntoView({ block: 'start', behavior: 'instant' });
     }
-    setTimeout(() => { isScrollingFromEditor = false; }, 120);
     return;
   }
 
   if (message.type === 'scrollToAnchor') {
+    scrollSync.block('navigation', 450);
+    scrollSync.clearDebounce();
     const target = document.getElementById(message.value);
     target?.scrollIntoView({ block: 'start', behavior: 'instant' });
     return;
@@ -175,6 +174,8 @@ window.addEventListener('message', (event) => {
   }
 
   const state = message.payload;
+  scrollSync.block('render', 120);
+  scrollSync.clearDebounce();
   currentState = state;
   document.title = state.title;
   if (state.baseUrl) {
@@ -236,35 +237,26 @@ function renderToc(items) {
       event.preventDefault();
       vscode.postMessage({ type: 'revealLine', value: item.line });
       const target = document.getElementById(item.slug);
+      scrollSync.block('navigation', 500);
+      scrollSync.clearDebounce();
       target?.scrollIntoView({ block: 'nearest' });
       highlightTocItem(item.slug);
-      suppressScrollSync = true;
-      if (suppressScrollSyncTimer) {
-        clearTimeout(suppressScrollSyncTimer);
-      }
-      suppressScrollSyncTimer = setTimeout(() => {
-        suppressScrollSync = false;
-      }, 400);
     });
     tocList.appendChild(link);
   }
 }
 
 window.addEventListener('scroll', () => {
-  if (!suppressScrollSync) {
+  if (!scrollSync.isBlocked('navigation')) {
     updateActiveTocLink();
   }
 
-  if (isScrollingFromEditor || suppressScrollSync) {
+  if (scrollSync.isBlocked(['editor', 'navigation', 'render'])) {
     return;
   }
 
-  if (scrollSyncDebounce !== null) {
-    clearTimeout(scrollSyncDebounce);
-  }
-
-  scrollSyncDebounce = setTimeout(() => {
-    if (isScrollingFromEditor || suppressScrollSync) {
+  scrollSync.debounce(() => {
+    if (scrollSync.isBlocked(['editor', 'navigation', 'render'])) {
       return;
     }
 
@@ -289,6 +281,57 @@ window.addEventListener('scroll', () => {
     }
   }, 80);
 });
+
+function createScrollSyncGate() {
+  const blockedUntil = new Map();
+  const timers = new Map();
+  let debounceTimer = null;
+
+  function block(source, durationMs) {
+    const until = Date.now() + durationMs;
+    blockedUntil.set(source, until);
+
+    const existing = timers.get(source);
+    if (existing !== undefined) {
+      clearTimeout(existing);
+    }
+
+    timers.set(source, setTimeout(() => {
+      if ((blockedUntil.get(source) || 0) <= Date.now()) {
+        blockedUntil.delete(source);
+        timers.delete(source);
+      }
+    }, durationMs));
+  }
+
+  function isBlocked(source) {
+    const sources = Array.isArray(source) ? source : [source];
+    const now = Date.now();
+    return sources.some((item) => (blockedUntil.get(item) || 0) > now);
+  }
+
+  function clearDebounce() {
+    if (debounceTimer !== null) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+  }
+
+  function debounce(callback, delayMs) {
+    clearDebounce();
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      callback();
+    }, delayMs);
+  }
+
+  return {
+    block,
+    isBlocked,
+    clearDebounce,
+    debounce,
+  };
+}
 
 async function renderMermaidDiagrams() {
   const mermaidBlocks = previewContent.querySelectorAll('code.language-mermaid');

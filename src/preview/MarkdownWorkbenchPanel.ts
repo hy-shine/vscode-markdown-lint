@@ -5,15 +5,14 @@ import { formatMarkdownDocument } from '../core/formatter';
 import { resolvePreviewLinkTarget } from '../core/links';
 import { collectLocalImageRootUris } from '../core/localPaths';
 import { renderMarkdown } from '../core/markdown';
+import { ScrollSyncSuppressor } from '../core/scrollSync';
 import { extractToc } from '../core/toc';
 import { PreviewState, PreviewStyle, ThemeMode } from '../types';
 
 interface PreviewEntry {
   panel: vscode.WebviewPanel;
   sourceUri: vscode.Uri;
-  isScrollingFromPreview: boolean;
-  isResizing: boolean;
-  resizeTimer?: ReturnType<typeof setTimeout>;
+  scrollSyncSuppressor: ScrollSyncSuppressor;
   scrollSyncTimer?: ReturnType<typeof setTimeout>;
 }
 
@@ -64,7 +63,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   public postVisibleLineRange(document: vscode.TextDocument, line: number): void {
     const entry = this.getEntry(document.uri);
-    if (!entry || entry.isResizing) {
+    if (!entry || entry.scrollSyncSuppressor.isActive(['preview', 'resize'])) {
       return;
     }
 
@@ -72,7 +71,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       clearTimeout(entry.scrollSyncTimer);
     }
     entry.scrollSyncTimer = setTimeout(() => {
-      if (!entry.isResizing) {
+      if (!entry.scrollSyncSuppressor.isActive(['preview', 'resize'])) {
         void entry.panel.webview.postMessage({ type: 'scrollToLine', value: line });
       }
     }, 50);
@@ -106,6 +105,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     }
 
     for (const entry of this.previews.values()) {
+      entry.scrollSyncSuppressor.dispose();
       entry.panel.dispose();
     }
     this.previews.clear();
@@ -113,10 +113,10 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   public isSyncingFromPreview(document?: vscode.TextDocument): boolean {
     if (document) {
-      return this.getEntry(document.uri)?.isScrollingFromPreview ?? false;
+      return this.getEntry(document.uri)?.scrollSyncSuppressor.isActive('preview') ?? false;
     }
 
-    return Array.from(this.previews.values()).some((entry) => entry.isScrollingFromPreview);
+    return Array.from(this.previews.values()).some((entry) => entry.scrollSyncSuppressor.isActive('preview'));
   }
 
   private async openOrRevealPreview(
@@ -173,8 +173,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const entry: PreviewEntry = {
       panel,
       sourceUri,
-      isScrollingFromPreview: false,
-      isResizing: false,
+      scrollSyncSuppressor: new ScrollSyncSuppressor(),
     };
 
     panel.iconPath = {
@@ -185,6 +184,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     this.previews.set(getPreviewKey(sourceUri), entry);
 
     panel.onDidDispose(() => {
+      entry.scrollSyncSuppressor.dispose();
       this.previews.delete(getPreviewKey(entry.sourceUri));
       if (this.activeSourceUri?.toString() === entry.sourceUri.toString()) {
         this.activeSourceUri = this.previews.values().next().value?.sourceUri;
@@ -253,13 +253,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   }
 
   private notifyResizeEntry(entry: PreviewEntry): void {
-    entry.isResizing = true;
-    if (entry.resizeTimer) {
-      clearTimeout(entry.resizeTimer);
-    }
-    entry.resizeTimer = setTimeout(() => {
-      entry.isResizing = false;
-    }, 300);
+    entry.scrollSyncSuppressor.suppress('resize', 300);
   }
 
   private async formatDocument(document: vscode.TextDocument): Promise<void> {
@@ -303,6 +297,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         if (!editor) {
           return;
         }
+        entry.scrollSyncSuppressor.suppress('preview', 450);
         const position = new vscode.Position(message.value, 0);
         editor.selection = new vscode.Selection(position, position);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
@@ -327,11 +322,10 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         if (!editor) {
           return;
         }
-        entry.isScrollingFromPreview = true;
+        entry.scrollSyncSuppressor.suppress('preview', 350);
         const line = Math.min(message.value, editor.document.lineCount - 1);
         const position = new vscode.Position(line, 0);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
-        setTimeout(() => { entry.isScrollingFromPreview = false; }, 150);
         return;
       }
       case 'formatDocument': {
