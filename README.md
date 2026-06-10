@@ -1,4 +1,4 @@
-# markdown-lint
+# Markdown Preview Lite
 
 <p align="center">
   <img src="./images/hero-dark.png" width="49%" alt="Dark Mode Preview">
@@ -8,14 +8,14 @@
   <em>Dark Mode Preview</em>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;<em>Light Mode Preview</em>
 </p>
 
-A polished Markdown preview extension for VS Code. Open a side panel with live rendering, table of contents, scroll sync, multiple themes, math formulas, code highlighting, and one-click HTML export.
+A lightweight Markdown preview extension for VS Code. Open a side panel with live rendering, table of contents, scroll sync, multiple themes, math formulas, code highlighting, and one-click HTML export.
 
 ---
 
 ## Quick Start
 
 1. Open any `.md` file
-2. Click the preview icon in the editor title bar, or run `Preview with Markdown Lint` from the Command Palette
+2. Click the preview icon in the editor title bar, or run `Preview with Markdown Preview Lite` from the Command Palette
 3. Switch themes and styles from the floating menu in the preview panel
 
 ---
@@ -59,7 +59,9 @@ Export your Markdown to a shareable HTML file with preview styles and local imag
 
 ## Settings
 
-Search for `markdown-lint` in VS Code Settings:
+Search for `Markdown Preview Lite` in VS Code Settings.
+
+For compatibility with earlier releases, the setting IDs still use the historical `markdown-lint.*` namespace:
 
 | Setting                      | Default   | Options                                                                |
 | ---------------------------- | --------- | ---------------------------------------------------------------------- |
@@ -71,10 +73,10 @@ Search for `markdown-lint` in VS Code Settings:
 
 ## Available Commands
 
-- `markdown-lint: Preview with Markdown Lint` (`markdown-lint.openPreview`) — Open the preview panel
-- `markdown-lint: Format Document` (`markdown-lint.formatDocument`) — Clean up Markdown structure
-- `markdown-lint: Refresh TOC` (`markdown-lint.refreshToc`) — Re-extract headings
-- `markdown-lint: Export HTML` (`markdown-lint.exportHtml`) — Save as standalone HTML
+- `Markdown Preview Lite: Preview with Markdown Preview Lite` (`markdown-lint.openPreview`) — Open the preview panel
+- `Markdown Preview Lite: Format Document` (`markdown-lint.formatDocument`) — Clean up Markdown structure
+- `Markdown Preview Lite: Refresh TOC` (`markdown-lint.refreshToc`) — Re-extract headings
+- `Markdown Preview Lite: Export HTML` (`markdown-lint.exportHtml`) — Save as standalone HTML
 
 ---
 

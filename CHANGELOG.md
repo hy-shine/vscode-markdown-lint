@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Reposition the extension as Markdown Preview Lite while preserving the existing extension ID, command IDs, and `markdown-lint.*` settings for Marketplace and user compatibility.
+
 ## [0.4.0] - 2026-06-08
 
 ### Added

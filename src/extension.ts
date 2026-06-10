@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.commands.registerCommand('markdown-lint.openPreview', () => {
         const editor = vscode.window.activeTextEditor;
         if (!editor || editor.document.languageId !== 'markdown') {
-          void vscode.window.showInformationMessage('Open a Markdown file to use markdown lint preview.');
+          void vscode.window.showInformationMessage('Open a Markdown file to use Markdown Preview Lite.');
           return;
         }
 

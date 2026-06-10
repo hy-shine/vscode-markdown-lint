@@ -1,7 +1,7 @@
 {
   "name": "markdown-lint",
-  "displayName": "Markdown Preview Lint",
-  "description": "Enhanced Markdown preview with multiple themes, table of contents, math formulas, code highlighting, and export capabilities.",
+  "displayName": "Markdown Preview Lite",
+  "description": "Lightweight Markdown preview with multiple themes, table of contents, math formulas, code highlighting, and HTML export.",
   "version": "0.4.0",
   "publisher": "hyshine",
   "license": "MIT",
@@ -37,7 +37,7 @@
     "commands": [
       {
         "command": "markdown-lint.openPreview",
-        "title": "Preview with Markdown Lint",
+        "title": "Preview with Markdown Preview Lite",
         "icon": {
           "light": "images/open-preview.svg",
           "dark": "images/open-preview-dark.svg"
@@ -45,15 +45,15 @@
       },
       {
         "command": "markdown-lint.formatDocument",
-        "title": "Markdown Lint: Format Document"
+        "title": "Markdown Preview Lite: Format Document"
       },
       {
         "command": "markdown-lint.refreshToc",
-        "title": "Markdown Lint: Refresh TOC"
+        "title": "Markdown Preview Lite: Refresh TOC"
       },
       {
         "command": "markdown-lint.exportHtml",
-        "title": "Markdown Lint: Export HTML"
+        "title": "Markdown Preview Lite: Export HTML"
       }
     ],
     "menus": {
@@ -66,7 +66,7 @@
       ]
     },
     "configuration": {
-      "title": "markdown-lint",
+      "title": "Markdown Preview Lite",
       "properties": {
         "markdown-lint.themeMode": {
           "type": "string",
@@ -76,7 +76,7 @@
             "dark"
           ],
           "default": "auto",
-          "description": "Theme mode for the Markdown Lint preview."
+          "description": "Theme mode for the Markdown Preview Lite preview."
         },
         "markdown-lint.previewStyle": {
           "type": "string",
@@ -99,7 +99,7 @@
             "Typora-inspired style (Whitey light / Night dark)"
           ],
           "default": "default",
-          "description": "Preview style preset for the Markdown Lint preview. Options: default, github, notion, tokyo-night, obsidian, paper, typora."
+          "description": "Preview style preset for Markdown Preview Lite. Options: default, github, notion, tokyo-night, obsidian, paper, typora."
         },
         "markdown-lint.showToc": {
           "type": "boolean",

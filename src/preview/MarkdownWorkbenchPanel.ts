@@ -155,7 +155,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   private createEntry(sourceUri: vscode.Uri): PreviewEntry {
     const panel = vscode.window.createWebviewPanel(
       'markdown-lint.preview',
-      sourceUri.fsPath.split(/[\\/]/).pop() ?? 'Markdown Lint',
+      sourceUri.fsPath.split(/[\\/]/).pop() ?? 'Markdown Preview Lite',
       vscode.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -448,7 +448,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="${styleUri}" rel="stylesheet" />
     <link href="${katexStyleUri}" rel="stylesheet" />
-    <title>MD Lint</title>
+    <title>Markdown Preview Lite</title>
   </head>
   <body>
     <div class="outline-control" id="outline-control">
