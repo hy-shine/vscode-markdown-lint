@@ -23,11 +23,17 @@ let currentState = {
 
 const scrollSync = createScrollSyncGate();
 let mermaidLoadPromise = null;
+const copyFeedbackTimers = new WeakMap();
+let lastLightboxTrigger = null;
 
 // --- Outline popup toggle ---
 outlineTrigger.addEventListener('click', (e) => {
   e.stopPropagation();
-  outlineControl.classList.toggle('is-open');
+  const isOpen = outlineControl.classList.toggle('is-open');
+  outlineTrigger.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) {
+    scrollActiveTocLinkIntoView();
+  }
 });
 
 // --- Floating menu toggle ---
@@ -49,6 +55,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     outlineControl.classList.remove('is-open');
+    outlineTrigger.setAttribute('aria-expanded', 'false');
     floatingControls.classList.remove('is-open');
     floatingTrigger.setAttribute('aria-expanded', 'false');
     collapseAllGroups();
@@ -228,6 +235,17 @@ function syncFloatingMenu(themeMode, previewStyle) {
 function renderToc(items) {
   tocList.innerHTML = '';
 
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'toc-empty';
+    empty.textContent = '当前文档没有标题';
+    tocList.appendChild(empty);
+    outlineControl.classList.add('is-empty');
+    return;
+  }
+
+  outlineControl.classList.remove('is-empty');
+
   for (const item of items) {
     const link = document.createElement('a');
     link.href = `#${item.slug}`;
@@ -242,6 +260,7 @@ function renderToc(items) {
       scrollSync.clearDebounce();
       target?.scrollIntoView({ block: 'nearest' });
       highlightTocItem(item.slug);
+      scrollActiveTocLinkIntoView();
     });
     tocList.appendChild(link);
   }
@@ -390,7 +409,13 @@ async function renderMermaidDiagrams() {
 function highlightTocItem(slug) {
   const links = tocList.querySelectorAll('.toc-link');
   for (const link of links) {
-    link.classList.toggle('is-active', link.getAttribute('href') === `#${slug}`);
+    const isActive = link.getAttribute('href') === `#${slug}`;
+    link.classList.toggle('is-active', isActive);
+    if (isActive) {
+      link.setAttribute('aria-current', 'location');
+    } else {
+      link.removeAttribute('aria-current');
+    }
   }
 }
 
@@ -422,7 +447,21 @@ function updateActiveTocLink() {
   for (const link of links) {
     const isActive = link.getAttribute('href') === `#${activeId}`;
     link.classList.toggle('is-active', isActive);
+    if (isActive) {
+      link.setAttribute('aria-current', 'location');
+    } else {
+      link.removeAttribute('aria-current');
+    }
   }
+}
+
+function scrollActiveTocLinkIntoView() {
+  const active = tocList.querySelector('.toc-link.is-active');
+  if (!active || !outlineControl.classList.contains('is-open')) {
+    return;
+  }
+
+  active.scrollIntoView({ block: 'nearest' });
 }
 
 function getCssVar(name, fallback = '') {
@@ -955,25 +994,42 @@ function setupImageLightbox() {
     }
 
     img.classList.add('preview-image-lightbox-trigger');
+    img.tabIndex = 0;
     img.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openImageLightbox(img.currentSrc || img.src, img.alt || '');
+      openImageLightbox(img.currentSrc || img.src, img.alt || '', img);
+    });
+    img.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') {
+        return;
+      }
+
+      e.preventDefault();
+      openImageLightbox(img.currentSrc || img.src, img.alt || '', img);
     });
   }
 }
 
-function openImageLightbox(src, alt) {
+function openImageLightbox(src, alt, trigger) {
   const lightbox = ensureImageLightbox();
   const image = lightbox.querySelector('.image-lightbox-image');
+  const caption = lightbox.querySelector('.image-lightbox-caption');
+  const closeButton = lightbox.querySelector('.image-lightbox-close');
   if (!image) {
     return;
   }
 
+  lastLightboxTrigger = trigger || null;
   image.src = src;
   image.alt = alt;
+  if (caption) {
+    caption.textContent = alt;
+    caption.hidden = !alt;
+  }
   lightbox.classList.add('is-open');
   document.body.classList.add('has-image-lightbox');
+  closeButton?.focus();
 }
 
 function closeImageLightbox() {
@@ -987,8 +1043,15 @@ function closeImageLightbox() {
     image.removeAttribute('src');
     image.removeAttribute('alt');
   }
+  const caption = lightbox.querySelector('.image-lightbox-caption');
+  if (caption) {
+    caption.replaceChildren();
+    caption.hidden = true;
+  }
   lightbox.classList.remove('is-open');
   document.body.classList.remove('has-image-lightbox');
+  lastLightboxTrigger?.focus?.();
+  lastLightboxTrigger = null;
 }
 
 function ensureImageLightbox() {
@@ -1000,9 +1063,15 @@ function ensureImageLightbox() {
   lightbox = document.createElement('div');
   lightbox.id = 'image-lightbox';
   lightbox.className = 'image-lightbox';
+  lightbox.setAttribute('role', 'dialog');
+  lightbox.setAttribute('aria-modal', 'true');
+  lightbox.setAttribute('aria-label', 'Image preview');
   lightbox.innerHTML = `
     <button class="image-lightbox-close" type="button" aria-label="Close image preview">×</button>
-    <img class="image-lightbox-image" alt="">
+    <figure class="image-lightbox-frame">
+      <img class="image-lightbox-image" alt="">
+      <figcaption class="image-lightbox-caption" hidden></figcaption>
+    </figure>
   `;
 
   lightbox.addEventListener('click', (e) => {
@@ -1025,6 +1094,7 @@ function ensureImageLightbox() {
 function setupCodeCopyButtons() {
   const copyButtons = previewContent.querySelectorAll('.code-copy-button');
   for (const button of copyButtons) {
+    setCopyButtonState(button, 'idle');
     button.addEventListener('click', async (e) => {
       e.stopPropagation();
       const code = button.dataset.code;
@@ -1034,20 +1104,46 @@ function setupCodeCopyButtons() {
 
       try {
         await navigator.clipboard.writeText(code);
-        button.textContent = 'Copied!';
-        button.classList.add('copied');
-        setTimeout(() => {
-          button.textContent = 'Copy';
-          button.classList.remove('copied');
-        }, 2000);
+        setCopyButtonState(button, 'copied');
+        queueCopyButtonReset(button, 1600);
       } catch {
-        button.textContent = 'Failed';
-        setTimeout(() => {
-          button.textContent = 'Copy';
-        }, 2000);
+        setCopyButtonState(button, 'failed');
+        queueCopyButtonReset(button, 2000);
       }
     });
   }
+}
+
+function setCopyButtonState(button, state) {
+  button.classList.toggle('copied', state === 'copied');
+  button.classList.toggle('failed', state === 'failed');
+
+  if (state === 'copied') {
+    button.textContent = 'Copied';
+    button.setAttribute('aria-label', 'Code copied');
+    return;
+  }
+
+  if (state === 'failed') {
+    button.textContent = 'Failed';
+    button.setAttribute('aria-label', 'Copy failed');
+    return;
+  }
+
+  button.textContent = 'Copy';
+  button.setAttribute('aria-label', 'Copy code');
+}
+
+function queueCopyButtonReset(button, delayMs) {
+  const existing = copyFeedbackTimers.get(button);
+  if (existing) {
+    clearTimeout(existing);
+  }
+
+  copyFeedbackTimers.set(button, setTimeout(() => {
+    setCopyButtonState(button, 'idle');
+    copyFeedbackTimers.delete(button);
+  }, delayMs));
 }
 
 function setupCodeFoldButtons() {
