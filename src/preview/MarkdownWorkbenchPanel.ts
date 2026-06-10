@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { exportHtml } from '../core/export';
 import { getWorkbenchConfig, updatePreviewStyle, updateShowToc, updateThemeMode } from '../core/config';
 import { formatMarkdownDocument } from '../core/formatter';
+import { resolvePreviewLinkTarget } from '../core/links';
 import { collectLocalImageRootUris } from '../core/localPaths';
 import { renderMarkdown } from '../core/markdown';
 import { extractToc } from '../core/toc';
@@ -353,61 +354,34 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   }
 
   private async openLink(entry: PreviewEntry, href: string): Promise<void> {
-    if (/^https?:/i.test(href)) {
-      await vscode.env.openExternal(vscode.Uri.parse(href));
-      return;
-    }
-
-    if (/^mailto:/i.test(href)) {
-      await vscode.env.openExternal(vscode.Uri.parse(href));
-      return;
-    }
-
-    if (/^file:/i.test(href)) {
-      await this.openFileUriLink(href);
-      return;
-    }
-
-    const { path, fragment } = splitLinkTarget(href);
-    if (!path) {
-      return;
-    }
-
     const baseUri = vscode.Uri.joinPath(entry.sourceUri, '..');
-    const linkUri = resolveLinkedUri(baseUri, decodeLinkPath(path));
+    const target = resolvePreviewLinkTarget(baseUri.toString(), href);
+    if (target.type === 'anchor') {
+      return;
+    }
+
+    if (target.type === 'external') {
+      await vscode.env.openExternal(vscode.Uri.parse(target.href));
+      return;
+    }
+
+    const targetUri = vscode.Uri.parse(target.uri);
     try {
-      await vscode.workspace.fs.stat(linkUri);
+      await vscode.workspace.fs.stat(targetUri);
     } catch {
       void vscode.window.showWarningMessage(`Linked file not found: ${href}`);
       return;
     }
 
     try {
-      const doc = await vscode.workspace.openTextDocument(linkUri);
-      if (isPreviewableMarkdown(doc)) {
-        await this.openOrRevealPreview(doc.uri, fragment, doc);
-      } else {
-        await this.openNonMarkdownDocument(doc);
-      }
-    } catch {
-      await vscode.env.openExternal(linkUri);
-    }
-  }
-
-  private async openFileUriLink(href: string): Promise<void> {
-    const uri = vscode.Uri.parse(href);
-    const fragment = uri.fragment || undefined;
-    const targetUri = uri.with({ fragment: '' });
-
-    try {
       const doc = await vscode.workspace.openTextDocument(targetUri);
       if (isPreviewableMarkdown(doc)) {
-        await this.openOrRevealPreview(doc.uri, fragment, doc);
+        await this.openOrRevealPreview(doc.uri, target.fragment, doc);
       } else {
         await this.openNonMarkdownDocument(doc);
       }
     } catch {
-      await vscode.env.openExternal(uri);
+      await vscode.env.openExternal(targetUri);
     }
   }
 
@@ -548,37 +522,12 @@ function getPreviewKey(uri: vscode.Uri): string {
   return uri.toString();
 }
 
-function splitLinkTarget(href: string): { path: string; fragment?: string } {
-  const hashIndex = href.indexOf('#');
-  if (hashIndex === -1) {
-    return { path: href };
-  }
-
-  return {
-    path: href.slice(0, hashIndex),
-    fragment: href.slice(hashIndex + 1) || undefined,
-  };
-}
-
-function decodeLinkPath(path: string): string {
-  try {
-    return decodeURIComponent(path);
-  } catch {
-    return path;
-  }
-}
-
 function decodeFragment(fragment: string): string {
   try {
     return decodeURIComponent(fragment);
   } catch {
     return fragment;
   }
-}
-
-function resolveLinkedUri(baseUri: vscode.Uri, linkPath: string): vscode.Uri {
-  const segments = linkPath.split('/').filter((segment) => segment.length > 0);
-  return vscode.Uri.joinPath(baseUri, ...segments);
 }
 
 function isPreviewableMarkdown(document: vscode.TextDocument): boolean {
