@@ -2,7 +2,7 @@
   "name": "markdown-lint",
   "displayName": "Markdown Preview Lite",
   "description": "Lightweight Markdown preview with multiple themes, table of contents, math formulas, code highlighting, and HTML export.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "hyshine",
   "license": "MIT",
   "author": "jessy",

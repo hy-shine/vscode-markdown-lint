@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## [0.5.0] - 2026-06-10
 
 ### Changed
 - Reposition the extension as Markdown Preview Lite while preserving the existing extension ID, command IDs, and `markdown-lint.*` settings for Marketplace and user compatibility.
+- Polish the preview reading experience with clearer table of contents states, active heading visibility, copy feedback, and image lightbox behavior.
+
+### Fixed
+- Normalize local path handling across preview rendering, webview resource roots, and HTML export for paths with spaces, Chinese characters, parent segments, raw HTML images, and `file:` URIs.
+- Stabilize preview link handling so Markdown links open previews, local non-Markdown links open in the editor, external links open outside the webview, and missing local files show clearer warnings.
+- Reduce scroll synchronization contention between the editor, preview, resize handling, and table of contents navigation.
+- Make Mermaid rendering failures quiet and readable so one failed diagram does not break the preview or exported HTML.
 
 ## [0.4.0] - 2026-06-08
 

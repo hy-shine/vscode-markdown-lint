@@ -36,6 +36,14 @@ test('keeps external and anchor references out of local path handling', () => {
     type: 'external',
     href: 'https://example.com/a b',
   });
+  assert.deepEqual(resolveReference('file:///tmp/docs/', 'ftp://example.com/file.md'), {
+    type: 'external',
+    href: 'ftp://example.com/file.md',
+  });
+  assert.deepEqual(resolveReference('file:///tmp/docs/', 'vscode://file/Users/jessy/docs/readme.md'), {
+    type: 'external',
+    href: 'vscode://file/Users/jessy/docs/readme.md',
+  });
   assert.deepEqual(resolveReference('file:///tmp/docs/', '#local-heading'), {
     type: 'anchor',
     fragment: 'local-heading',

@@ -8,5 +8,12 @@ node_modules/**
 !node_modules/prettier/**
 **/*.map
 .vscode/**
+.claude/**
+.claude-plugin/**
+labels/**
+sessions/**
+skills/**
+sources/**
+statuses/**
 *.vsix
 .gitignore

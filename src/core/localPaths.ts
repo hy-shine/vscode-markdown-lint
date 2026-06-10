@@ -5,7 +5,7 @@ export type ResolvedReference =
   | { type: 'external'; href: string }
   | { type: 'local'; uri: string; fragment?: string };
 
-const EXTERNAL_SCHEME_RE = /^(?:https?:|mailto:|data:)/i;
+const ABSOLUTE_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 
 export function resolveReference(baseDirectoryUri: string, href: string): ResolvedReference {
   const target = href.trim();
@@ -13,7 +13,7 @@ export function resolveReference(baseDirectoryUri: string, href: string): Resolv
     return { type: 'anchor', fragment: target.slice(1) };
   }
 
-  if (EXTERNAL_SCHEME_RE.test(target)) {
+  if (ABSOLUTE_SCHEME_RE.test(target) && !/^file:/i.test(target)) {
     return { type: 'external', href };
   }
 
