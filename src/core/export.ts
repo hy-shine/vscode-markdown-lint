@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
 import { buildMermaidExportRuntime, convertMermaidCodeBlocksForExport } from './exportMarkup';
+import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
 
@@ -61,7 +62,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   }
 
   for (const { oldMatch, newMatch } of replacements) {
-    finalHtmlContent = finalHtmlContent.replace(oldMatch, newMatch);
+    finalHtmlContent = finalHtmlContent.replaceAll(oldMatch, newMatch);
   }
 
   const themeMode = config.themeMode === 'auto'
@@ -119,17 +120,6 @@ function getImageMime(ext: string): string {
     default:
       return 'application/octet-stream';
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
 function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): string {

@@ -4,6 +4,7 @@ import katex from 'katex';
 import { marked, TokenizerAndRendererExtension, Tokens } from 'marked';
 import { TocItem } from '../types';
 import { resolveHeadingMeta } from './headings';
+import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { resolveReference } from './localPaths';
 
 export interface RenderedMarkdown {
@@ -210,15 +211,4 @@ function stripFrontMatter(markdown: string): string {
   }
 
   return normalized.slice(match[0].length);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/"/g, '&quot;');
 }

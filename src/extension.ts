@@ -5,11 +5,13 @@ import { MarkdownWorkbenchPanel } from './preview/MarkdownWorkbenchPanel';
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
-    const panel = new MarkdownWorkbenchPanel(context);
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('markdown-preview-lite');
+    const panel = new MarkdownWorkbenchPanel(context, diagnosticCollection);
     const formattingProvider = new MarkdownFormattingProvider();
     const updateDebounces = new Map<string, NodeJS.Timeout>();
 
     context.subscriptions.push(
+      diagnosticCollection,
       panel,
       vscode.languages.registerDocumentFormattingEditProvider({ language: 'markdown' }, formattingProvider),
       vscode.commands.registerCommand('markdown-lint.openPreview', () => {

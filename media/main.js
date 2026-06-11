@@ -13,6 +13,7 @@ const styleOptions = document.getElementById('style-options');
 const formatButton = document.getElementById('format-button');
 const exportButton = document.getElementById('export-button');
 const floatingRefresh = document.getElementById('floating-refresh');
+const floatingBadge = document.getElementById('floating-badge');
 const themeValueEl = document.getElementById('theme-value');
 const styleValueEl = document.getElementById('style-value');
 
@@ -207,6 +208,7 @@ window.addEventListener('message', (event) => {
   setupCodeFoldButtons();
   setupImageLightbox();
   updateActiveTocLink();
+  updateChecksBadge(state.checks);
 });
 
 function setBodyPresentation(themeMode, previewStyle) {
@@ -238,7 +240,7 @@ function renderToc(items) {
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'toc-empty';
-    empty.textContent = '当前文档没有标题';
+    empty.textContent = 'No headings in document';
     tocList.appendChild(empty);
     outlineControl.classList.add('is-empty');
     return;
@@ -264,6 +266,15 @@ function renderToc(items) {
     });
     tocList.appendChild(link);
   }
+}
+
+function updateChecksBadge(checks) {
+  if (!checks || checks.length === 0) {
+    floatingBadge.hidden = true;
+    return;
+  }
+  floatingBadge.textContent = checks.length;
+  floatingBadge.hidden = false;
 }
 
 window.addEventListener('scroll', () => {

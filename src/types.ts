@@ -9,6 +9,22 @@ export interface TocItem {
   slug: string;
 }
 
+export type PreviewCheckType =
+  | 'missing-image'
+  | 'broken-link'
+  | 'missing-alt'
+  | 'empty-heading'
+  | 'heading-skip'
+  | 'duplicate-heading';
+
+export interface PreviewCheck {
+  line: number;
+  endLine?: number;
+  type: PreviewCheckType;
+  message: string;
+  targetUri?: string;
+}
+
 export interface PreviewState {
   title: string;
   html: string;
@@ -18,4 +34,5 @@ export interface PreviewState {
   previewStyle: PreviewStyle;
   tocVisible: boolean;
   baseUrl: string;
+  checks: PreviewCheck[];
 }

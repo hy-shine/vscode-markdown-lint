@@ -5,9 +5,10 @@ import { formatMarkdownDocument } from '../core/formatter';
 import { resolvePreviewLinkTarget } from '../core/links';
 import { collectLocalImageRootUris } from '../core/localPaths';
 import { renderMarkdown } from '../core/markdown';
+import { runPreviewChecks } from '../core/previewChecks';
 import { ScrollSyncSuppressor } from '../core/scrollSync';
 import { extractToc } from '../core/toc';
-import { PreviewState, PreviewStyle, ThemeMode } from '../types';
+import { PreviewCheck, PreviewState, PreviewStyle, ThemeMode } from '../types';
 
 interface PreviewEntry {
   panel: vscode.WebviewPanel;
@@ -21,7 +22,10 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   private activeSourceUri: vscode.Uri | undefined;
   private readonly disposables: vscode.Disposable[] = [];
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly diagnosticCollection: vscode.DiagnosticCollection,
+  ) {}
 
   public reveal(editor: vscode.TextEditor): void {
     if (editor.document.languageId !== 'markdown') {
@@ -185,6 +189,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
     panel.onDidDispose(() => {
       entry.scrollSyncSuppressor.dispose();
+      this.diagnosticCollection.delete(entry.sourceUri);
       this.previews.delete(getPreviewKey(entry.sourceUri));
       if (this.activeSourceUri?.toString() === entry.sourceUri.toString()) {
         this.activeSourceUri = this.previews.values().next().value?.sourceUri;
@@ -237,6 +242,9 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       (uri) => entry.panel.webview.asWebviewUri(uri),
     );
     const config = getWorkbenchConfig();
+    const checks = await runPreviewChecks(markdown, resolvedDocument.uri);
+
+    this.updateDiagnostics(resolvedDocument, checks);
 
     const state: PreviewState = {
       title: resolvedDocument.fileName.split(/[\\/]/).pop() ?? 'Untitled.md',
@@ -247,6 +255,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       previewStyle: config.previewStyle,
       tocVisible: config.showToc,
       baseUrl: entry.panel.webview.asWebviewUri(baseUri).toString() + '/',
+      checks,
     };
 
     await entry.panel.webview.postMessage({ type: 'render', payload: state });
@@ -254,6 +263,19 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   private notifyResizeEntry(entry: PreviewEntry): void {
     entry.scrollSyncSuppressor.suppress('resize', 300);
+  }
+
+  private updateDiagnostics(document: vscode.TextDocument, checks: PreviewCheck[]): void {
+    const diagnostics = checks.map((check) => {
+      const endLineIndex = Math.min(check.endLine ?? check.line, Math.max(0, document.lineCount - 1));
+      const endChar = endLineIndex >= 0 ? document.lineAt(endLineIndex).text.length : 0;
+      const range = new vscode.Range(check.line, 0, endLineIndex, endChar);
+      const diagnostic = new vscode.Diagnostic(range, check.message, vscode.DiagnosticSeverity.Warning);
+      diagnostic.source = 'Markdown Preview Lite';
+      diagnostic.code = check.type;
+      return diagnostic;
+    });
+    this.diagnosticCollection.set(document.uri, diagnostics);
   }
 
   private async formatDocument(document: vscode.TextDocument): Promise<void> {
@@ -441,6 +463,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
             <circle cx="9.5" cy="14.75" r="1.9" fill="currentColor"/>
           </svg>
         </span>
+        <span class="floating-badge" id="floating-badge" hidden></span>
       </button>
       <div class="floating-menu" id="floating-menu">
         <div class="floating-menu-header">
