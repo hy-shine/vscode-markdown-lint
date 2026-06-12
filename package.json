@@ -53,7 +53,7 @@
       },
       {
         "command": "markdown-lint.formatDocument",
-        "title": "Markdown Preview Lite: Format Document"
+        "title": "Markdown Preview Lite: Format"
       },
       {
         "command": "markdown-lint.refreshToc",
@@ -86,19 +86,6 @@
           "default": "auto",
           "description": "Theme mode for the Markdown Preview Lite preview."
         },
-        "markdown-lint.previewMode": {
-          "type": "string",
-          "enum": [
-            "beside",
-            "inline"
-          ],
-          "enumDescriptions": [
-            "Open the preview beside the Markdown editor.",
-            "Open the preview in the current editor group."
-          ],
-          "default": "beside",
-          "description": "Default Markdown preview placement. Use 'beside' for split preview or 'inline' for preview in the current editor group."
-        },
         "markdown-lint.previewStyle": {
           "type": "string",
           "enum": [
@@ -121,6 +108,19 @@
           ],
           "default": "default",
           "description": "Preview style preset for Markdown Preview Lite. Options: default, github, notion, tokyo-night, obsidian, paper, typora."
+        },
+        "markdown-lint.previewMode": {
+          "type": "string",
+          "enum": [
+            "beside",
+            "inline"
+          ],
+          "enumDescriptions": [
+            "Open the preview beside the Markdown editor.",
+            "Open the preview in the current editor group."
+          ],
+          "default": "beside",
+          "description": "Default Markdown preview placement. Use 'beside' for split preview or 'inline' for preview in the current editor group."
         },
         "markdown-lint.showToc": {
           "type": "boolean",

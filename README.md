@@ -63,12 +63,12 @@ Search for `Markdown Preview Lite` in VS Code Settings.
 
 For compatibility with earlier releases, the setting IDs still use the historical `markdown-lint.*` namespace:
 
-| Setting                      | Default   | Options                                                                |
-| ---------------------------- | --------- | ---------------------------------------------------------------------- |
-| `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                              |
-| `markdown-lint.previewMode`  | `beside`  | `beside` · `inline`                                                    |
+| Setting                      | Default   | Options                                                                           |
+| ---------------------------- | --------- | --------------------------------------------------------------------------------- |
+| `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                                         |
+| `markdown-lint.previewMode`  | `beside`  | `beside` · `inline`                                                               |
 | `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` · `typora` |
-| `markdown-lint.showToc`      | `true`    | `true` · `false`                                                       |
+| `markdown-lint.showToc`      | `true`    | `true` · `false`                                                                  |
 
 ---
 

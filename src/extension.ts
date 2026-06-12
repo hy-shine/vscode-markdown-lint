@@ -70,6 +70,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
         await panel.updateAll();
       }),
+      vscode.window.onDidChangeActiveColorTheme(async () => {
+        await panel.updateAll();
+      }),
       vscode.window.onDidChangeTextEditorVisibleRanges((event: vscode.TextEditorVisibleRangesChangeEvent) => {
         if (event.textEditor.document.languageId !== 'markdown') {
           return;

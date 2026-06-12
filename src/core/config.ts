@@ -26,6 +26,10 @@ export async function updateThemeMode(themeMode: ThemeMode): Promise<void> {
   await vscode.workspace.getConfiguration(SECTION).update('themeMode', themeMode, vscode.ConfigurationTarget.Global);
 }
 
+export async function updatePreviewMode(previewMode: PreviewMode): Promise<void> {
+  await vscode.workspace.getConfiguration(SECTION).update('previewMode', previewMode, vscode.ConfigurationTarget.Global);
+}
+
 export async function updatePreviewStyle(previewStyle: PreviewStyle): Promise<void> {
   await vscode.workspace.getConfiguration(SECTION).update('previewStyle', previewStyle, vscode.ConfigurationTarget.Global);
 }

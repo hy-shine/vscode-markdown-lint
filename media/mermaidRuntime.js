@@ -83,9 +83,34 @@
     };
   }
 
+  function hasClass(classList, className) {
+    return typeof classList?.contains === 'function' && classList.contains(className);
+  }
+
+  function isDarkPreviewAppearance(classList) {
+    if (hasClass(classList, 'theme-dark')) {
+      return true;
+    }
+
+    if (hasClass(classList, 'theme-light')) {
+      return false;
+    }
+
+    if (!hasClass(classList, 'theme-auto')) {
+      return false;
+    }
+
+    if (hasClass(classList, 'vscode-light')) {
+      return false;
+    }
+
+    return hasClass(classList, 'vscode-dark') || hasClass(classList, 'vscode-high-contrast');
+  }
+
   return {
     MERMAID_SECURITY_LEVEL,
     createEventListenerScope,
     createMermaidRenderSession,
+    isDarkPreviewAppearance,
   };
 });

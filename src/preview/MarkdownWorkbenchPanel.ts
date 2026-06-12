@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { exportHtml } from '../core/export';
-import { getWorkbenchConfig, updatePreviewStyle, updateShowToc, updateThemeMode } from '../core/config';
+import { getWorkbenchConfig, updatePreviewMode, updatePreviewStyle, updateShowToc, updateThemeMode } from '../core/config';
 import { formatMarkdownDocument } from '../core/formatter';
 import { resolvePreviewLinkTarget } from '../core/links';
 import { collectLocalImageRootUris } from '../core/localPaths';
@@ -336,6 +336,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       rawText: markdown,
       toc,
       themeMode: config.themeMode,
+      previewMode: config.previewMode,
       previewStyle: config.previewStyle,
       tocVisible: config.showToc,
       baseUrl: entry.panel.webview.asWebviewUri(baseUri).toString() + '/',
@@ -386,6 +387,10 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     switch (message.type) {
       case 'setThemeMode':
         await updateThemeMode(message.value);
+        await this.updateAll();
+        return;
+      case 'setPreviewMode':
+        await updatePreviewMode(message.value);
         await this.updateAll();
         return;
       case 'setPreviewStyle':
@@ -572,13 +577,25 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <span class="floating-menu-group-copy">
             <span class="floating-menu-group-label">Theme</span>
           </span>
-          <span class="floating-menu-group-value" id="theme-value">System</span>
+          <span class="floating-menu-group-value" id="theme-value">Auto</span>
           <span class="floating-menu-group-arrow">&#9656;</span>
         </button>
         <div class="floating-menu-sub" id="theme-options">
-          <button class="floating-menu-item" data-value="auto">System</button>
+          <button class="floating-menu-item" data-value="auto">Auto</button>
           <button class="floating-menu-item" data-value="light">Light</button>
           <button class="floating-menu-item" data-value="dark">Dark</button>
+        </div>
+        <button class="floating-menu-group" data-group="placement" type="button" aria-expanded="false">
+          <span class="floating-menu-group-icon" aria-hidden="true">⇄</span>
+          <span class="floating-menu-group-copy">
+            <span class="floating-menu-group-label">Placement</span>
+          </span>
+          <span class="floating-menu-group-value" id="placement-value">Beside</span>
+          <span class="floating-menu-group-arrow">&#9656;</span>
+        </button>
+        <div class="floating-menu-sub" id="placement-options">
+          <button class="floating-menu-item" data-value="beside">Beside</button>
+          <button class="floating-menu-item" data-value="inline">Inline</button>
         </div>
         <button class="floating-menu-group" data-group="style" type="button" aria-expanded="false">
           <span class="floating-menu-group-icon" aria-hidden="true">✦</span>
@@ -600,7 +617,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         <button class="floating-menu-action" id="format-button" type="button">
           <span class="floating-menu-action-icon" aria-hidden="true">⌘</span>
           <span class="floating-menu-action-copy">
-            <span class="floating-menu-action-title">Format Document</span>
+            <span class="floating-menu-action-title">Format</span>
           </span>
         </button>
         <button class="floating-menu-action" id="export-button" type="button">
@@ -625,6 +642,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
 type WebviewMessage =
   | { type: 'setThemeMode'; value: ThemeMode }
+  | { type: 'setPreviewMode'; value: PreviewMode }
   | { type: 'setPreviewStyle'; value: PreviewStyle }
   | { type: 'toggleToc'; value: boolean }
   | { type: 'revealLine'; value: number }

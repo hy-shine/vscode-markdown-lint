@@ -33,6 +33,7 @@ export interface PreviewState {
   rawText: string;
   toc: TocItem[];
   themeMode: ThemeMode;
+  previewMode: PreviewMode;
   previewStyle: PreviewStyle;
   tocVisible: boolean;
   baseUrl: string;

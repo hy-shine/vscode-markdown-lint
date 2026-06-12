@@ -7,6 +7,7 @@ const {
   MERMAID_SECURITY_LEVEL,
   createEventListenerScope,
   createMermaidRenderSession,
+  isDarkPreviewAppearance,
 } = require('../media/mermaidRuntime.js');
 
 test('uses antiscript as the default Mermaid security level', () => {
@@ -80,4 +81,23 @@ test('event listener scope falls back to removeEventListener without AbortContro
       capture: true,
     },
   ]);
+});
+
+function classList(...classes: string[]) {
+  return {
+    contains(className: string) {
+      return classes.includes(className);
+    },
+  };
+}
+
+test('preview appearance follows VS Code theme classes in auto mode', () => {
+  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-light')), false);
+  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-dark')), true);
+  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-high-contrast')), true);
+});
+
+test('explicit preview theme overrides VS Code theme classes', () => {
+  assert.equal(isDarkPreviewAppearance(classList('theme-light', 'vscode-dark')), false);
+  assert.equal(isDarkPreviewAppearance(classList('theme-dark', 'vscode-light')), true);
 });

@@ -9,18 +9,21 @@ const floatingControls = document.getElementById('floating-controls');
 const floatingTrigger = document.getElementById('floating-trigger');
 const floatingMenu = document.getElementById('floating-menu');
 const themeOptions = document.getElementById('theme-options');
+const placementOptions = document.getElementById('placement-options');
 const styleOptions = document.getElementById('style-options');
 const formatButton = document.getElementById('format-button');
 const exportButton = document.getElementById('export-button');
 const floatingRefresh = document.getElementById('floating-refresh');
 const floatingBadge = document.getElementById('floating-badge');
 const themeValueEl = document.getElementById('theme-value');
+const placementValueEl = document.getElementById('placement-value');
 const styleValueEl = document.getElementById('style-value');
 
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 
 let currentState = {
   themeMode: 'auto',
+  previewMode: 'beside',
   previewStyle: 'default',
   tocVisible: true,
 };
@@ -162,6 +165,15 @@ themeOptions.addEventListener('click', (e) => {
   collapseAllGroups();
 });
 
+// --- Placement option clicks ---
+placementOptions.addEventListener('click', (e) => {
+  const item = e.target.closest('.floating-menu-item');
+  if (!item) { return; }
+  e.stopPropagation();
+  vscode.postMessage({ type: 'setPreviewMode', value: item.dataset.value });
+  collapseAllGroups();
+});
+
 // --- Style option clicks ---
 styleOptions.addEventListener('click', (e) => {
   const item = e.target.closest('.floating-menu-item');
@@ -264,7 +276,7 @@ window.addEventListener('message', (event) => {
     base.href = state.baseUrl;
   }
   setBodyPresentation(state.themeMode, state.previewStyle);
-  syncFloatingMenu(state.themeMode, state.previewStyle);
+  syncFloatingMenu(state.themeMode, state.previewStyle, state.previewMode);
   syncTocVisibility(state.tocVisible);
 
   // Cleanup orphaned Mermaid error containers that are attached directly to the document body
@@ -291,9 +303,12 @@ function setBodyPresentation(themeMode, previewStyle) {
   body.classList.add(`style-${previewStyle}`);
 }
 
-function syncFloatingMenu(themeMode, previewStyle) {
+function syncFloatingMenu(themeMode, previewStyle, previewMode) {
   for (const item of themeOptions.querySelectorAll('.floating-menu-item')) {
     item.classList.toggle('is-active', item.dataset.value === themeMode);
+  }
+  for (const item of placementOptions.querySelectorAll('.floating-menu-item')) {
+    item.classList.toggle('is-active', item.dataset.value === previewMode);
   }
   for (const item of styleOptions.querySelectorAll('.floating-menu-item')) {
     item.classList.toggle('is-active', item.dataset.value === previewStyle);
@@ -301,6 +316,10 @@ function syncFloatingMenu(themeMode, previewStyle) {
   if (themeValueEl) {
     const themeLabels = { auto: 'System', light: 'Light', dark: 'Dark' };
     themeValueEl.textContent = themeLabels[themeMode] || themeMode;
+  }
+  if (placementValueEl) {
+    const placementLabels = { beside: 'Beside', inline: 'Inline' };
+    placementValueEl.textContent = placementLabels[previewMode] || previewMode;
   }
   if (styleValueEl) {
     styleValueEl.textContent = previewStyle.charAt(0).toUpperCase() + previewStyle.slice(1).replace('-', ' ');
@@ -628,7 +647,7 @@ function getCssVar(name, fallback = '') {
 }
 
 function isPreviewDarkAppearance() {
-  return body.classList.contains('theme-dark') || (body.classList.contains('theme-auto') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  return mermaidRuntime.isDarkPreviewAppearance(body.classList);
 }
 
 function isPaperStyle() {
