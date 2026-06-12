@@ -1,5 +1,7 @@
 export type ThemeMode = 'auto' | 'light' | 'dark';
 
+export type PreviewMode = 'inline' | 'beside';
+
 export type PreviewStyle = 'default' | 'github' | 'notion' | 'tokyo-night' | 'obsidian' | 'paper' | 'typora';
 
 export interface TocItem {

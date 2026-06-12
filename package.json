@@ -44,6 +44,14 @@
         }
       },
       {
+        "command": "markdown-lint.openPreviewInline",
+        "title": "Markdown Preview Lite: Open Preview Inline"
+      },
+      {
+        "command": "markdown-lint.openPreviewToSide",
+        "title": "Markdown Preview Lite: Open Preview to the Side"
+      },
+      {
         "command": "markdown-lint.formatDocument",
         "title": "Markdown Preview Lite: Format Document"
       },
@@ -77,6 +85,19 @@
           ],
           "default": "auto",
           "description": "Theme mode for the Markdown Preview Lite preview."
+        },
+        "markdown-lint.previewMode": {
+          "type": "string",
+          "enum": [
+            "beside",
+            "inline"
+          ],
+          "enumDescriptions": [
+            "Open the preview beside the Markdown editor.",
+            "Open the preview in the current editor group."
+          ],
+          "default": "beside",
+          "description": "Default Markdown preview placement. Use 'beside' for split preview or 'inline' for preview in the current editor group."
         },
         "markdown-lint.previewStyle": {
           "type": "string",

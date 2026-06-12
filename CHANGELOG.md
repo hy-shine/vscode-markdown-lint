@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Add configurable inline or side-by-side preview placement with `markdown-lint.previewMode`.
+- Add commands to open the current preview inline or to the side without changing the global default.
+
 ## [0.5.0] - 2026-06-10
 
 ### Changed

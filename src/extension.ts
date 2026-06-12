@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { exportHtml } from './core/export';
 import { MarkdownFormattingProvider } from './formatting/MarkdownFormattingProvider';
 import { MarkdownWorkbenchPanel } from './preview/MarkdownWorkbenchPanel';
+import { PreviewMode } from './types';
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
@@ -9,19 +10,25 @@ export function activate(context: vscode.ExtensionContext): void {
     const panel = new MarkdownWorkbenchPanel(context, diagnosticCollection);
     const formattingProvider = new MarkdownFormattingProvider();
     const updateDebounces = new Map<string, NodeJS.Timeout>();
+    const revealPreview = async (modeOverride?: PreviewMode): Promise<void> => {
+      const didReveal = await panel.revealActive(modeOverride);
+      if (!didReveal) {
+        void vscode.window.showInformationMessage('Open a Markdown file to use Markdown Preview Lite.');
+      }
+    };
 
     context.subscriptions.push(
       diagnosticCollection,
       panel,
       vscode.languages.registerDocumentFormattingEditProvider({ language: 'markdown' }, formattingProvider),
-      vscode.commands.registerCommand('markdown-lint.openPreview', () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor || editor.document.languageId !== 'markdown') {
-          void vscode.window.showInformationMessage('Open a Markdown file to use Markdown Preview Lite.');
-          return;
-        }
-
-        panel.reveal(editor);
+      vscode.commands.registerCommand('markdown-lint.openPreview', async () => {
+        await revealPreview();
+      }),
+      vscode.commands.registerCommand('markdown-lint.openPreviewInline', async () => {
+        await revealPreview('inline');
+      }),
+      vscode.commands.registerCommand('markdown-lint.openPreviewToSide', async () => {
+        await revealPreview('beside');
       }),
       vscode.commands.registerCommand('markdown-lint.formatDocument', async () => {
         await panel.formatActiveDocument();

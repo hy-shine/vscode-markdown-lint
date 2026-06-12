@@ -9,6 +9,8 @@ import {
   findMissingAltText,
   findMissingImages,
 } from '../src/core/previewChecksPure';
+import { filterExistingTargetChecks } from '../src/core/previewChecksTargetFilter';
+import type { PreviewCheck } from '../src/types';
 
 function fenced(markdown: string): Set<number> {
   return getCodeFencedLines(markdown);
@@ -209,4 +211,38 @@ test('ignores links inside code blocks', () => {
   const checks = findBrokenLinks(md, fenced(md), 'file:///tmp/docs/');
   assert.equal(checks.length, 1);
   assert.equal(checks[0].line, 0);
+});
+
+test('filters target checks with concurrent stat lookups while preserving order', async () => {
+  const checks: PreviewCheck[] = [
+    { line: 0, type: 'missing-alt', message: 'Missing alt text' },
+    { line: 1, type: 'missing-image', message: 'Image exists', targetUri: 'file:///tmp/docs/existing.png' },
+    { line: 2, type: 'broken-link', message: 'Link missing', targetUri: 'file:///tmp/docs/missing.md' },
+    { line: 3, type: 'missing-image', message: 'Image missing', targetUri: 'file:///tmp/docs/slow-missing.png' },
+  ];
+  const calls: string[] = [];
+  let activeStats = 0;
+  let maxActiveStats = 0;
+
+  const result = await filterExistingTargetChecks(checks, async (targetUri) => {
+    calls.push(targetUri);
+    activeStats += 1;
+    maxActiveStats = Math.max(maxActiveStats, activeStats);
+    await new Promise((resolve) => setTimeout(resolve, targetUri.includes('existing') ? 30 : 10));
+    activeStats -= 1;
+
+    if (targetUri.includes('existing')) {
+      return;
+    }
+
+    throw new Error('missing');
+  });
+
+  assert.deepEqual(calls, [
+    'file:///tmp/docs/existing.png',
+    'file:///tmp/docs/missing.md',
+    'file:///tmp/docs/slow-missing.png',
+  ]);
+  assert.equal(maxActiveStats, 3);
+  assert.deepEqual(result.map((check) => check.line), [0, 2, 3]);
 });

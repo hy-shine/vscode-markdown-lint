@@ -17,6 +17,8 @@ const floatingBadge = document.getElementById('floating-badge');
 const themeValueEl = document.getElementById('theme-value');
 const styleValueEl = document.getElementById('style-value');
 
+const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
+
 let currentState = {
   themeMode: 'auto',
   previewStyle: 'default',
@@ -26,6 +28,20 @@ const scrollSync = createScrollSyncGate();
 let mermaidLoadPromise = null;
 const copyFeedbackTimers = new WeakMap();
 let lastLightboxTrigger = null;
+let headingCache = [];
+let lastSyncedSourceLine = null;
+let activeHeadingTracker = window.MDLINT_ACTIVE_HEADING?.createActiveHeadingObserver?.({
+  getScrollY: () => window.scrollY,
+  getViewportHeight: () => window.innerHeight,
+  onActiveChange: (heading) => {
+    if (!scrollSync.isBlocked('navigation')) {
+      highlightTocItem(heading?.id ?? null);
+    }
+  },
+});
+if (activeHeadingTracker?.isSupported?.() !== true) {
+  activeHeadingTracker = null;
+}
 
 // --- Outline popup toggle ---
 outlineTrigger.addEventListener('click', (e) => {
@@ -154,9 +170,8 @@ window.addEventListener('message', (event) => {
     scrollSync.block('editor', 220);
     scrollSync.clearDebounce();
     const line = message.value;
-    const headings = previewContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
     let target = null;
-    for (const heading of headings) {
+    for (const heading of headingCache) {
       const headingLine = heading.dataset.sourceLine;
       if (headingLine !== undefined && Number(headingLine) <= line) {
         target = heading;
@@ -201,7 +216,11 @@ window.addEventListener('message', (event) => {
   // Cleanup orphaned Mermaid error containers that are attached directly to the document body
   document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
 
+  headingCache = [];
+  lastSyncedSourceLine = null;
   previewContent.innerHTML = state.html;
+  rebuildHeadingCache();
+  resetActiveHeadingObserver();
   renderToc(state.toc);
   renderMermaidDiagrams();
   setupCodeCopyButtons();
@@ -291,26 +310,13 @@ window.addEventListener('scroll', () => {
       return;
     }
 
-    const headings = previewContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    const areaRect = { top: 0, bottom: window.innerHeight };
-    let bestHeading = null;
-    let bestOffset = Infinity;
-
-    for (const heading of headings) {
-      const rect = heading.getBoundingClientRect();
-      const offset = rect.top - areaRect.top;
-      if (offset <= 80 && offset > -rect.height) {
-        if (80 - offset < bestOffset) {
-          bestOffset = 80 - offset;
-          bestHeading = heading;
-        }
-      }
-    }
-
-    if (bestHeading && bestHeading.dataset.sourceLine !== undefined) {
-      vscode.postMessage({ type: 'syncEditorScroll', value: Number(bestHeading.dataset.sourceLine) });
-    }
+    postEditorScrollForHeading(getHeadingForEditorSync());
   }, 80);
+});
+
+window.addEventListener('resize', () => {
+  resetActiveHeadingObserver();
+  updateActiveTocLink();
 });
 
 function createScrollSyncGate() {
@@ -362,6 +368,14 @@ function createScrollSyncGate() {
     clearDebounce,
     debounce,
   };
+}
+
+function rebuildHeadingCache() {
+  headingCache = Array.from(previewContent.querySelectorAll(HEADING_SELECTOR));
+}
+
+function resetActiveHeadingObserver() {
+  activeHeadingTracker?.reset(headingCache);
 }
 
 async function renderMermaidDiagrams() {
@@ -420,7 +434,7 @@ async function renderMermaidDiagrams() {
 function highlightTocItem(slug) {
   const links = tocList.querySelectorAll('.toc-link');
   for (const link of links) {
-    const isActive = link.getAttribute('href') === `#${slug}`;
+    const isActive = slug !== null && link.getAttribute('href') === `#${slug}`;
     link.classList.toggle('is-active', isActive);
     if (isActive) {
       link.setAttribute('aria-current', 'location');
@@ -431,39 +445,79 @@ function highlightTocItem(slug) {
 }
 
 function updateActiveTocLink() {
-  const headings = previewContent.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const observedHeading = activeHeadingTracker?.getActiveHeading();
+  if (observedHeading) {
+    highlightTocItem(observedHeading.id);
+    return;
+  }
+
+  const activeHeading = findActiveHeadingByGeometry();
+  activeHeadingTracker?.setActiveHeading(activeHeading);
+  highlightTocItem(activeHeading?.id ?? null);
+}
+
+function findActiveHeadingByGeometry() {
   const areaRect = { top: 0, bottom: window.innerHeight };
-  let activeId = null;
+  let activeHeading = null;
 
   const isAtBottom = document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 40;
 
-  for (const heading of headings) {
+  for (const heading of headingCache) {
     const rect = heading.getBoundingClientRect();
     if (rect.top <= areaRect.top + 80) {
-      activeId = heading.id;
+      activeHeading = heading;
     }
   }
 
-  if (!activeId && isAtBottom) {
-    for (let i = headings.length - 1; i >= 0; i--) {
-      const rect = headings[i].getBoundingClientRect();
+  if (!activeHeading && isAtBottom) {
+    for (let i = headingCache.length - 1; i >= 0; i--) {
+      const rect = headingCache[i].getBoundingClientRect();
       if (rect.top < areaRect.bottom) {
-        activeId = headings[i].id;
+        activeHeading = headingCache[i];
         break;
       }
     }
   }
 
-  const links = tocList.querySelectorAll('.toc-link');
-  for (const link of links) {
-    const isActive = link.getAttribute('href') === `#${activeId}`;
-    link.classList.toggle('is-active', isActive);
-    if (isActive) {
-      link.setAttribute('aria-current', 'location');
-    } else {
-      link.removeAttribute('aria-current');
+  return activeHeading;
+}
+
+function getHeadingForEditorSync() {
+  const observedHeading = activeHeadingTracker?.getActiveHeading();
+  if (observedHeading) {
+    return observedHeading;
+  }
+
+  const areaRect = { top: 0 };
+  let bestHeading = null;
+  let bestOffset = Infinity;
+
+  for (const heading of headingCache) {
+    const rect = heading.getBoundingClientRect();
+    const offset = rect.top - areaRect.top;
+    if (offset <= 80 && offset > -rect.height) {
+      if (80 - offset < bestOffset) {
+        bestOffset = 80 - offset;
+        bestHeading = heading;
+      }
     }
   }
+
+  return bestHeading;
+}
+
+function postEditorScrollForHeading(heading) {
+  if (!heading || heading.dataset.sourceLine === undefined) {
+    return;
+  }
+
+  const sourceLine = Number(heading.dataset.sourceLine);
+  if (sourceLine === lastSyncedSourceLine) {
+    return;
+  }
+
+  lastSyncedSourceLine = sourceLine;
+  vscode.postMessage({ type: 'syncEditorScroll', value: sourceLine });
 }
 
 function scrollActiveTocLinkIntoView() {

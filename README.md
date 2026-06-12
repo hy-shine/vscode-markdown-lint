@@ -8,7 +8,7 @@
   <em>Dark Mode Preview</em>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;<em>Light Mode Preview</em>
 </p>
 
-A lightweight Markdown preview extension for VS Code. Open a side panel with live rendering, table of contents, scroll sync, multiple themes, math formulas, code highlighting, and one-click HTML export.
+A lightweight Markdown preview extension for VS Code. Open an inline or side-by-side preview with live rendering, table of contents, scroll sync, multiple themes, math formulas, code highlighting, and one-click HTML export.
 
 ---
 
@@ -66,6 +66,7 @@ For compatibility with earlier releases, the setting IDs still use the historica
 | Setting                      | Default   | Options                                                                |
 | ---------------------------- | --------- | ---------------------------------------------------------------------- |
 | `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                              |
+| `markdown-lint.previewMode`  | `beside`  | `beside` · `inline`                                                    |
 | `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` · `typora` |
 | `markdown-lint.showToc`      | `true`    | `true` · `false`                                                       |
 
@@ -73,7 +74,9 @@ For compatibility with earlier releases, the setting IDs still use the historica
 
 ## Available Commands
 
-- `Markdown Preview Lite: Preview with Markdown Preview Lite` (`markdown-lint.openPreview`) — Open the preview panel
+- `Markdown Preview Lite: Preview with Markdown Preview Lite` (`markdown-lint.openPreview`) — Open the preview using the configured default placement
+- `Markdown Preview Lite: Open Preview Inline` (`markdown-lint.openPreviewInline`) — Open the preview in the current editor group
+- `Markdown Preview Lite: Open Preview to the Side` (`markdown-lint.openPreviewToSide`) — Open the preview beside the Markdown editor
 - `Markdown Preview Lite: Format Document` (`markdown-lint.formatDocument`) — Clean up Markdown structure
 - `Markdown Preview Lite: Refresh TOC` (`markdown-lint.refreshToc`) — Re-extract headings
 - `Markdown Preview Lite: Export HTML` (`markdown-lint.exportHtml`) — Save as standalone HTML

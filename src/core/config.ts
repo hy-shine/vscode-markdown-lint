@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
-import { PreviewStyle, ThemeMode } from '../types';
+import { PreviewMode, PreviewStyle, ThemeMode } from '../types';
+import { normalizePreviewMode } from './previewMode';
 
 const SECTION = 'markdown-lint';
 
 export interface WorkbenchConfig {
   themeMode: ThemeMode;
+  previewMode: PreviewMode;
   previewStyle: PreviewStyle;
   showToc: boolean;
 }
@@ -14,6 +16,7 @@ export function getWorkbenchConfig(): WorkbenchConfig {
 
   return {
     themeMode: config.get<ThemeMode>('themeMode', 'auto'),
+    previewMode: normalizePreviewMode(config.get<PreviewMode>('previewMode')),
     previewStyle: config.get<PreviewStyle>('previewStyle', 'default'),
     showToc: config.get<boolean>('showToc', true),
   };
