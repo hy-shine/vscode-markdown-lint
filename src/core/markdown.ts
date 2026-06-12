@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import hljs from 'highlight.js';
 import katex from 'katex';
 import { marked, TokenizerAndRendererExtension, Tokens } from 'marked';
@@ -70,8 +69,8 @@ marked.setOptions({
 export function renderMarkdown(
   markdown: string,
   toc: TocItem[],
-  baseUri?: vscode.Uri,
-  resolveImageUri?: (uri: vscode.Uri) => vscode.Uri,
+  baseUri?: string,
+  resolveImageUri?: (uri: string) => string,
 ): RenderedMarkdown {
   let headingIndex = 0;
 
@@ -82,12 +81,13 @@ export function renderMarkdown(
     return `<h${depth} id="${escapeAttribute(meta.slug)}" data-source-line="${meta.line}">${text}</h${depth}>`;
   };
   renderer.code = ({ text, lang }: Tokens.Code) => {
-    if (lang === 'mermaid') {
+    const language = normalizeCodeFenceLanguage(lang);
+    if (language === 'mermaid') {
       return `<pre><code class="language-mermaid">${escapeHtml(text)}</code></pre>`;
     }
-    const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-    let highlighted = hljs.highlight(text, { language }).value;
-    if (language === 'bash' || language === 'sh' || language === 'zsh') {
+    const highlightLanguage = language && hljs.getLanguage(language) ? language : 'plaintext';
+    let highlighted = hljs.highlight(text, { language: highlightLanguage }).value;
+    if (highlightLanguage === 'bash' || highlightLanguage === 'sh' || highlightLanguage === 'zsh') {
       highlighted = annotateShellCommands(highlighted);
     }
     const lineCount = text.split('\n').length;
@@ -96,7 +96,7 @@ export function renderMarkdown(
     const lines = wrapHighlightedLines(highlighted);
     const copyButton = `<button class="code-copy-button" data-code="${escapeAttribute(text)}" aria-label="Copy code">Copy</button>`;
     const foldButton = isFoldable ? `<button class="code-fold-toggle" aria-expanded="false" aria-label="Expand code">Expand</button>` : '';
-    return `<pre${foldAttrs}>${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(language)}">${lines}</code></pre>`;
+    return `<pre${foldAttrs}>${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(highlightLanguage)}">${lines}</code></pre>`;
   };
   renderer.image = ({ href, title, text }: Tokens.Image) => {
     const src = resolveImageSource(href, baseUri, resolveImageUri);
@@ -118,22 +118,25 @@ export function renderMarkdown(
   };
 }
 
+function normalizeCodeFenceLanguage(lang: string | undefined): string {
+  return (lang || '').trim().split(/\s+/, 1)[0].toLowerCase();
+}
+
 function resolveImageSource(
   href: string,
-  baseUri?: vscode.Uri,
-  resolveImageUri?: (uri: vscode.Uri) => vscode.Uri,
+  baseUri?: string,
+  resolveImageUri?: (uri: string) => string,
 ): string {
   if (!baseUri) {
     return href;
   }
 
-  const resolved = resolveReference(baseUri.toString(), href);
+  const resolved = resolveReference(baseUri, href);
   if (resolved.type !== 'local') {
     return href;
   }
 
-  const imageUri = vscode.Uri.parse(resolved.uri);
-  return resolveImageUri ? resolveImageUri(imageUri).toString() : imageUri.toString();
+  return resolveImageUri ? resolveImageUri(resolved.uri) : resolved.uri;
 }
 
 // Common shell commands not in highlight.js built_in list

@@ -22,10 +22,13 @@ const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 let currentState = {
   themeMode: 'auto',
   previewStyle: 'default',
+  tocVisible: true,
 };
 
 const scrollSync = createScrollSyncGate();
 let mermaidLoadPromise = null;
+const mermaidRuntime = window.MDLINT_MERMAID_RUNTIME;
+const mermaidRenderSession = mermaidRuntime.createMermaidRenderSession();
 const copyFeedbackTimers = new WeakMap();
 let lastLightboxTrigger = null;
 let headingCache = [];
@@ -43,39 +46,90 @@ if (activeHeadingTracker?.isSupported?.() !== true) {
   activeHeadingTracker = null;
 }
 
+function closeOutline() {
+  outlineControl.classList.remove('is-open');
+  outlineTrigger.setAttribute('aria-expanded', 'false');
+}
+
+function setOutlineOpen(isOpen) {
+  if (outlineControl.classList.contains('is-hidden')) {
+    isOpen = false;
+  }
+  outlineControl.classList.toggle('is-open', isOpen);
+  outlineTrigger.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) {
+    closeFloatingMenu();
+    scrollActiveTocLinkIntoView();
+  }
+}
+
+function closeFloatingMenu() {
+  floatingControls.classList.remove('is-open');
+  floatingTrigger.setAttribute('aria-expanded', 'false');
+  collapseAllGroups();
+}
+
+function setFloatingMenuOpen(isOpen) {
+  floatingControls.classList.toggle('is-open', isOpen);
+  floatingTrigger.setAttribute('aria-expanded', String(isOpen));
+  if (isOpen) {
+    closeOutline();
+    return;
+  }
+  collapseAllGroups();
+}
+
 // --- Outline popup toggle ---
 outlineTrigger.addEventListener('click', (e) => {
   e.stopPropagation();
-  const isOpen = outlineControl.classList.toggle('is-open');
-  outlineTrigger.setAttribute('aria-expanded', String(isOpen));
-  if (isOpen) {
-    scrollActiveTocLinkIntoView();
-  }
+  setOutlineOpen(!outlineControl.classList.contains('is-open'));
 });
 
 // --- Floating menu toggle ---
 floatingTrigger.addEventListener('click', (e) => {
   e.stopPropagation();
-  const isOpen = floatingControls.classList.toggle('is-open');
-  floatingTrigger.setAttribute('aria-expanded', String(isOpen));
+  setFloatingMenuOpen(!floatingControls.classList.contains('is-open'));
 });
 
-// --- Dismiss floating menu on outside click ---
+// --- Dismiss floating controls on outside click ---
 document.addEventListener('click', (e) => {
   if (!floatingControls.contains(e.target)) {
-    floatingControls.classList.remove('is-open');
-    floatingTrigger.setAttribute('aria-expanded', 'false');
-    collapseAllGroups();
+    closeFloatingMenu();
+  }
+  if (!outlineControl.contains(e.target)) {
+    closeOutline();
   }
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    outlineControl.classList.remove('is-open');
-    outlineTrigger.setAttribute('aria-expanded', 'false');
-    floatingControls.classList.remove('is-open');
-    floatingTrigger.setAttribute('aria-expanded', 'false');
+  if (e.key !== 'Escape') {
+    return;
+  }
+
+  if (document.querySelector('.mermaid-fullscreen-overlay')) {
+    return;
+  }
+
+  if (closeImageLightboxIfOpen()) {
+    e.preventDefault();
+    return;
+  }
+
+  if (floatingMenu.querySelector('.floating-menu-group.is-expanded')) {
     collapseAllGroups();
+    e.preventDefault();
+    return;
+  }
+
+  if (floatingControls.classList.contains('is-open')) {
+    closeFloatingMenu();
+    e.preventDefault();
+    return;
+  }
+
+  if (outlineControl.classList.contains('is-open')) {
+    closeOutline();
+    e.preventDefault();
   }
 });
 
@@ -129,15 +183,13 @@ floatingRefresh.addEventListener('click', () => {
 // --- Export action ---
 exportButton.addEventListener('click', () => {
   vscode.postMessage({ type: 'exportHtml' });
-  floatingControls.classList.remove('is-open');
-  collapseAllGroups();
+  closeFloatingMenu();
 });
 
 // --- Format action ---
 formatButton.addEventListener('click', () => {
   vscode.postMessage({ type: 'formatDocument' });
-  floatingControls.classList.remove('is-open');
-  collapseAllGroups();
+  closeFloatingMenu();
 });
 
 previewContent.addEventListener('click', (e) => {
@@ -198,6 +250,7 @@ window.addEventListener('message', (event) => {
   }
 
   const state = message.payload;
+  const mermaidRenderToken = mermaidRenderSession.start();
   scrollSync.block('render', 120);
   scrollSync.clearDebounce();
   currentState = state;
@@ -212,6 +265,7 @@ window.addEventListener('message', (event) => {
   }
   setBodyPresentation(state.themeMode, state.previewStyle);
   syncFloatingMenu(state.themeMode, state.previewStyle);
+  syncTocVisibility(state.tocVisible);
 
   // Cleanup orphaned Mermaid error containers that are attached directly to the document body
   document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
@@ -222,7 +276,7 @@ window.addEventListener('message', (event) => {
   rebuildHeadingCache();
   resetActiveHeadingObserver();
   renderToc(state.toc);
-  renderMermaidDiagrams();
+  renderMermaidDiagrams(mermaidRenderToken);
   setupCodeCopyButtons();
   setupCodeFoldButtons();
   setupImageLightbox();
@@ -250,6 +304,16 @@ function syncFloatingMenu(themeMode, previewStyle) {
   }
   if (styleValueEl) {
     styleValueEl.textContent = previewStyle.charAt(0).toUpperCase() + previewStyle.slice(1).replace('-', ' ');
+  }
+}
+
+function syncTocVisibility(tocVisible) {
+  const isVisible = tocVisible !== false;
+  outlineControl.classList.toggle('is-hidden', !isVisible);
+  outlineControl.setAttribute('aria-hidden', String(!isVisible));
+  outlineTrigger.tabIndex = isVisible ? 0 : -1;
+  if (!isVisible) {
+    closeOutline();
   }
 }
 
@@ -378,13 +442,17 @@ function resetActiveHeadingObserver() {
   activeHeadingTracker?.reset(headingCache);
 }
 
-async function renderMermaidDiagrams() {
-  const mermaidBlocks = previewContent.querySelectorAll('code.language-mermaid');
+async function renderMermaidDiagrams(renderToken) {
+  const mermaidBlocks = Array.from(previewContent.querySelectorAll('code.language-mermaid'));
   if (mermaidBlocks.length === 0) {
     return;
   }
 
   const mermaid = await loadMermaid();
+  if (!mermaidRenderSession.isCurrent(renderToken)) {
+    return;
+  }
+
   if (!mermaid) {
     replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer failed to load.');
     return;
@@ -398,14 +466,20 @@ async function renderMermaidDiagrams() {
       mermaid.initialize(getFallbackMermaidConfig());
     } catch (fallbackError) {
       console.error('Mermaid fallback initialize failed.', fallbackError);
-      replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer initialization failed.');
+      if (mermaidRenderSession.isCurrent(renderToken)) {
+        replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer initialization failed.');
+      }
       return;
     }
   }
 
   for (const block of mermaidBlocks) {
+    if (!mermaidRenderSession.isCurrent(renderToken)) {
+      return;
+    }
+
     const pre = block.parentElement;
-    if (!pre) {
+    if (!pre?.isConnected) {
       continue;
     }
 
@@ -415,7 +489,14 @@ async function renderMermaidDiagrams() {
     }
 
     try {
-      const { svg } = await mermaid.render(`mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, source);
+      const { svg, bindFunctions } = await mermaid.render(`mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, source);
+      if (!mermaidRenderSession.isCurrent(renderToken)) {
+        return;
+      }
+      if (!pre.isConnected) {
+        continue;
+      }
+
       const container = document.createElement('div');
       container.className = 'mermaid-diagram';
       container.dataset.style = currentState.previewStyle;
@@ -423,8 +504,20 @@ async function renderMermaidDiagrams() {
       applyMermaidDesignTokens(container);
       enhanceMermaidSvg(container, source);
       pre.replaceWith(container);
+      try {
+        bindFunctions?.(container);
+      } catch (bindError) {
+        console.error('Mermaid bind functions failed.', bindError);
+      }
       setupMermaidInteraction(container);
     } catch (error) {
+      if (!mermaidRenderSession.isCurrent(renderToken)) {
+        return;
+      }
+      if (!pre.isConnected) {
+        continue;
+      }
+
       console.error('Mermaid render failed.', error);
       pre.replaceWith(createMermaidErrorElement(error?.message || error?.str || String(error)));
     }
@@ -805,7 +898,7 @@ function getMermaidConfig() {
 
   return {
     startOnLoad: false,
-    securityLevel: 'loose',
+    securityLevel: mermaidRuntime.MERMAID_SECURITY_LEVEL,
     theme: 'base',
     themeVariables,
     flowchart: {
@@ -837,7 +930,7 @@ function getFallbackMermaidConfig() {
   const isDark = isPreviewDarkAppearance();
   return {
     startOnLoad: false,
-    securityLevel: 'loose',
+    securityLevel: mermaidRuntime.MERMAID_SECURITY_LEVEL,
     theme: isDark ? 'dark' : 'default',
     flowchart: {
       htmlLabels: true,
@@ -900,6 +993,7 @@ function setupMermaidInteraction(container) {
   svg.style.cursor = 'grab';
   svg.style.transformOrigin = 'center center';
   svg.style.transition = 'transform 0.15s ease';
+  svg.style.touchAction = 'none';
 
   function applyTransform() {
     svg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
@@ -951,8 +1045,8 @@ function setupMermaidInteraction(container) {
     container.appendChild(controls);
   }
 
-  // Pan with mouse drag
-  svg.addEventListener('mousedown', (e) => {
+  // Pan with Pointer Events and pointer capture so drag listeners stay scoped to the SVG.
+  svg.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) { return; }
     isPanning = true;
     hasDragged = false;
@@ -960,20 +1054,29 @@ function setupMermaidInteraction(container) {
     startY = e.clientY - panY;
     svg.style.cursor = 'grabbing';
     svg.style.transition = 'none';
+    svg.setPointerCapture?.(e.pointerId);
   });
-  document.addEventListener('mousemove', (e) => {
+  svg.addEventListener('pointermove', (e) => {
     if (!isPanning) { return; }
+    e.preventDefault();
     panX = e.clientX - startX;
     panY = e.clientY - startY;
     hasDragged = true;
     applyTransform();
   });
-  document.addEventListener('mouseup', () => {
+
+  function finishPanning(e) {
     if (!isPanning) { return; }
     isPanning = false;
+    if (e?.pointerId !== undefined && svg.hasPointerCapture?.(e.pointerId)) {
+      svg.releasePointerCapture?.(e.pointerId);
+    }
     svg.style.cursor = 'grab';
     svg.style.transition = 'transform 0.15s ease';
-  });
+  }
+
+  svg.addEventListener('pointerup', finishPanning);
+  svg.addEventListener('pointercancel', finishPanning);
 
   // Double-click to reset
   svg.addEventListener('dblclick', () => {
@@ -999,20 +1102,26 @@ function setupMermaidInteraction(container) {
 function openMermaidFullscreen(container) {
   const overlay = document.createElement('div');
   overlay.className = 'mermaid-fullscreen-overlay';
+  const listenerScope = mermaidRuntime.createEventListenerScope(window);
+  function closeOverlay() {
+    listenerScope.abort();
+    overlay.remove();
+  }
+
   const clone = container.cloneNode(true);
   clone.classList.add('mermaid-fullscreen-content');
+  clone.querySelector('.mermaid-zoom-controls')?.remove();
   const closeBtn = document.createElement('button');
   closeBtn.className = 'mermaid-fullscreen-close';
   closeBtn.innerHTML = SVG_CLOSE;
   closeBtn.setAttribute('aria-label', 'Close fullscreen');
-  closeBtn.addEventListener('click', () => overlay.remove());
+  closeBtn.addEventListener('click', closeOverlay);
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) { overlay.remove(); }
+    if (e.target === overlay) { closeOverlay(); }
   });
-  document.addEventListener('keydown', function handler(e) {
+  listenerScope.add(document, 'keydown', (e) => {
     if (e.key === 'Escape') {
-      overlay.remove();
-      document.removeEventListener('keydown', handler);
+      closeOverlay();
     }
   });
   overlay.appendChild(clone);
@@ -1097,6 +1206,16 @@ function openImageLightbox(src, alt, trigger) {
   closeButton?.focus();
 }
 
+function closeImageLightboxIfOpen() {
+  const lightbox = document.getElementById('image-lightbox');
+  if (!lightbox?.classList.contains('is-open')) {
+    return false;
+  }
+
+  closeImageLightbox();
+  return true;
+}
+
 function closeImageLightbox() {
   const lightbox = document.getElementById('image-lightbox');
   if (!lightbox) {
@@ -1142,12 +1261,6 @@ function ensureImageLightbox() {
   lightbox.addEventListener('click', (e) => {
     const target = e.target;
     if (target === lightbox || target?.closest?.('.image-lightbox-close')) {
-      closeImageLightbox();
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
       closeImageLightbox();
     }
   });
@@ -1222,6 +1335,7 @@ function setupCodeFoldButtons() {
       pre.setAttribute('data-folded', String(!isFolded));
       button.setAttribute('aria-expanded', String(isFolded));
       button.textContent = isFolded ? 'Collapse' : 'Expand';
+      button.setAttribute('aria-label', isFolded ? 'Collapse code' : 'Expand code');
     });
   }
 }

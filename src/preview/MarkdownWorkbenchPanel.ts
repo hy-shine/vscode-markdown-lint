@@ -322,8 +322,8 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const rendered = renderMarkdown(
       markdown,
       toc,
-      baseUri,
-      (uri) => entry.panel.webview.asWebviewUri(uri),
+      baseUri.toString(),
+      (uri) => entry.panel.webview.asWebviewUri(vscode.Uri.parse(uri)).toString(),
     );
     const config = getWorkbenchConfig();
     const checks = await runPreviewChecks(markdown, resolvedDocument.uri);
@@ -509,6 +509,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   private getHtml(webview: vscode.Webview): string {
     const activeHeadingTrackerUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'activeHeadingTracker.js'));
+    const mermaidRuntimeUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidRuntime.js'));
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.css'));
     const katexStyleUri = webview.asWebviewUri(
@@ -531,15 +532,24 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
   </head>
   <body>
     <div class="outline-control" id="outline-control">
-      <button class="outline-trigger" id="outline-trigger" type="button" aria-label="TOC" title="TOC">&#9776;</button>
-      <div class="outline-panel" id="outline-panel">
+      <button class="outline-trigger" id="outline-trigger" type="button" aria-label="Toggle table of contents" title="Table of contents" aria-expanded="false" aria-controls="outline-panel">
+        <svg viewBox="0 0 20 20" fill="none" focusable="false" aria-hidden="true">
+          <path d="M7 5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M7 10h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M7 15h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="4" cy="5" r="1" fill="currentColor"/>
+          <circle cx="4" cy="10" r="1" fill="currentColor"/>
+          <circle cx="4" cy="15" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+      <div class="outline-panel" id="outline-panel" aria-label="Table of contents">
         <div class="outline-panel-title">TOC</div>
         <nav id="toc-list" class="toc-list"></nav>
       </div>
     </div>
     <div class="floating-controls" id="floating-controls">
       <button class="floating-refresh" id="floating-refresh" type="button" aria-label="Refresh preview" title="Refresh preview">↻</button>
-      <button class="floating-trigger" id="floating-trigger" type="button" aria-label="Preview settings" title="Preview settings" aria-expanded="false">
+      <button class="floating-trigger" id="floating-trigger" type="button" aria-label="Preview settings" title="Preview settings" aria-expanded="false" aria-controls="floating-menu">
         <span class="floating-trigger-ring"></span>
         <span class="floating-trigger-icon" aria-hidden="true">
           <svg viewBox="0 0 20 20" fill="none" focusable="false">
@@ -606,6 +616,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       window.MDLINT_MERMAID_URI = "${mermaidUri}";
     </script>
     <script nonce="${nonce}" src="${activeHeadingTrackerUri}"></script>
+    <script nonce="${nonce}" src="${mermaidRuntimeUri}"></script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
   </body>
 </html>`;

@@ -28,7 +28,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   
   let rendered: { html: string };
   try {
-    rendered = renderMarkdown(markdownText, toc, baseUri);
+    rendered = renderMarkdown(markdownText, toc, baseUri.toString());
   } catch (err) {
     console.error('[markdown-lint] exportHtml: renderMarkdown failed', err);
     throw err;
