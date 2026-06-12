@@ -34,3 +34,13 @@ test('resolves local image references without requiring vscode at runtime', () =
   assert.match(rendered.html, /src="webview:file:\/\/\/Users\/jessy\/docs\/images\/flow-chart\.png"/);
   assert.match(rendered.html, /src="webview:file:\/\/\/Users\/jessy\/docs\/assets\/raw%20image\.png"/);
 });
+
+test('renders long code blocks expanded by default with a manual collapse control', () => {
+  const code = Array.from({ length: 11 }, (_, index) => `console.log(${index});`).join('\n');
+  const markdown = ['```js', code, '```'].join('\n');
+
+  const rendered = renderMarkdown(markdown, []);
+
+  assert.match(rendered.html, /<pre data-foldable data-folded="false">/);
+  assert.match(rendered.html, /<button class="code-fold-toggle" aria-expanded="true" aria-label="Collapse code">Collapse<\/button>/);
+});

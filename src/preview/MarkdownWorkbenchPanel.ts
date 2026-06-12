@@ -514,7 +514,12 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   private getHtml(webview: vscode.Webview): string {
     const activeHeadingTrackerUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'activeHeadingTracker.js'));
+    const codeBlockControlsUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'codeBlockControls.js'));
+    const imageLightboxUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'imageLightbox.js'));
+    const mermaidEnhancementUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidEnhancement.js'));
+    const mermaidInteractionUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidInteraction.js'));
     const mermaidRuntimeUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidRuntime.js'));
+    const scrollSyncRuntimeUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'scrollSyncRuntime.js'));
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.css'));
     const katexStyleUri = webview.asWebviewUri(
@@ -553,7 +558,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       </div>
     </div>
     <div class="floating-controls" id="floating-controls">
-      <button class="floating-refresh" id="floating-refresh" type="button" aria-label="Refresh preview" title="Refresh preview">↻</button>
+      <button class="floating-refresh" id="floating-refresh" type="button" aria-label="Refresh preview" title="Refresh preview"><span class="floating-refresh-icon">↻</span></button>
       <button class="floating-trigger" id="floating-trigger" type="button" aria-label="Preview settings" title="Preview settings" aria-expanded="false" aria-controls="floating-menu">
         <span class="floating-trigger-ring"></span>
         <span class="floating-trigger-icon" aria-hidden="true">
@@ -585,18 +590,6 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <button class="floating-menu-item" data-value="light">Light</button>
           <button class="floating-menu-item" data-value="dark">Dark</button>
         </div>
-        <button class="floating-menu-group" data-group="placement" type="button" aria-expanded="false">
-          <span class="floating-menu-group-icon" aria-hidden="true">⇄</span>
-          <span class="floating-menu-group-copy">
-            <span class="floating-menu-group-label">Placement</span>
-          </span>
-          <span class="floating-menu-group-value" id="placement-value">Beside</span>
-          <span class="floating-menu-group-arrow">&#9656;</span>
-        </button>
-        <div class="floating-menu-sub" id="placement-options">
-          <button class="floating-menu-item" data-value="beside">Beside</button>
-          <button class="floating-menu-item" data-value="inline">Inline</button>
-        </div>
         <button class="floating-menu-group" data-group="style" type="button" aria-expanded="false">
           <span class="floating-menu-group-icon" aria-hidden="true">✦</span>
           <span class="floating-menu-group-copy">
@@ -613,6 +606,18 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <button class="floating-menu-item" data-value="obsidian">Obsidian</button>
           <button class="floating-menu-item" data-value="paper">Paper</button>
           <button class="floating-menu-item" data-value="typora">Typora</button>
+        </div>
+        <button class="floating-menu-group" data-group="placement" type="button" aria-expanded="false">
+          <span class="floating-menu-group-icon" aria-hidden="true">⇄</span>
+          <span class="floating-menu-group-copy">
+            <span class="floating-menu-group-label">Placement</span>
+          </span>
+          <span class="floating-menu-group-value" id="placement-value">Beside</span>
+          <span class="floating-menu-group-arrow">&#9656;</span>
+        </button>
+        <div class="floating-menu-sub" id="placement-options">
+          <button class="floating-menu-item" data-value="beside">Beside</button>
+          <button class="floating-menu-item" data-value="inline">Inline</button>
         </div>
         <button class="floating-menu-action" id="format-button" type="button">
           <span class="floating-menu-action-icon" aria-hidden="true">⌘</span>
@@ -633,7 +638,12 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       window.MDLINT_MERMAID_URI = "${mermaidUri}";
     </script>
     <script nonce="${nonce}" src="${activeHeadingTrackerUri}"></script>
+    <script nonce="${nonce}" src="${codeBlockControlsUri}"></script>
+    <script nonce="${nonce}" src="${imageLightboxUri}"></script>
+    <script nonce="${nonce}" src="${mermaidEnhancementUri}"></script>
+    <script nonce="${nonce}" src="${mermaidInteractionUri}"></script>
     <script nonce="${nonce}" src="${mermaidRuntimeUri}"></script>
+    <script nonce="${nonce}" src="${scrollSyncRuntimeUri}"></script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
   </body>
 </html>`;

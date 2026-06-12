@@ -2257,7 +2257,14 @@ body.theme-auto.vscode-dark.style-typora .outline-panel {
   }
 }
 
-.floating-refresh.spinning {
+.floating-refresh-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.floating-refresh.spinning .floating-refresh-icon {
   animation: spin 0.6s linear;
 }
 

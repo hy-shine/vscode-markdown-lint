@@ -92,10 +92,10 @@ export function renderMarkdown(
     }
     const lineCount = text.split('\n').length;
     const isFoldable = lineCount > 10;
-    const foldAttrs = isFoldable ? ' data-foldable data-folded="true"' : '';
+    const foldAttrs = isFoldable ? ' data-foldable data-folded="false"' : '';
     const lines = wrapHighlightedLines(highlighted);
     const copyButton = `<button class="code-copy-button" data-code="${escapeAttribute(text)}" aria-label="Copy code">Copy</button>`;
-    const foldButton = isFoldable ? `<button class="code-fold-toggle" aria-expanded="false" aria-label="Expand code">Expand</button>` : '';
+    const foldButton = isFoldable ? `<button class="code-fold-toggle" aria-expanded="true" aria-label="Collapse code">Collapse</button>` : '';
     return `<pre${foldAttrs}>${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(highlightLanguage)}">${lines}</code></pre>`;
   };
   renderer.image = ({ href, title, text }: Tokens.Image) => {
