@@ -268,6 +268,32 @@ select {
   position: relative;
 }
 
+.preview-content pre.code-block {
+  padding-top: 20px;
+}
+
+.code-language-label {
+  position: absolute;
+  top: 5px;
+  left: 16px;
+  z-index: 2;
+  max-width: calc(100% - 96px);
+  overflow: hidden;
+  color: color-mix(in srgb, var(--muted) 86%, var(--text));
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0;
+  opacity: 0.62;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .code-copy-button {
   position: absolute;
   top: 8px;

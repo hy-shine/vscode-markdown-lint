@@ -12,6 +12,7 @@ node_modules/**
 .claude-plugin/**
 labels/**
 sessions/**
+plans/**
 skills/**
 sources/**
 statuses/**

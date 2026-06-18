@@ -1,8 +1,8 @@
-import hljs from 'highlight.js';
 import katex from 'katex';
 import { marked, TokenizerAndRendererExtension, Tokens } from 'marked';
 import { TocItem } from '../types';
 import { resolveHeadingMeta } from './headings';
+import hljs from './highlight';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { resolveReference } from './localPaths';
 
@@ -94,9 +94,10 @@ export function renderMarkdown(
     const isFoldable = lineCount > 10;
     const foldAttrs = isFoldable ? ' data-foldable data-folded="false"' : '';
     const lines = wrapHighlightedLines(highlighted);
+    const languageLabel = `<span class="code-language-label">${escapeHtml(getCodeLanguageLabel(language))}</span>`;
     const copyButton = `<button class="code-copy-button" data-code="${escapeAttribute(text)}" aria-label="Copy code">Copy</button>`;
     const foldButton = isFoldable ? `<button class="code-fold-toggle" aria-expanded="true" aria-label="Collapse code">Collapse</button>` : '';
-    return `<pre${foldAttrs}>${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(highlightLanguage)}">${lines}</code></pre>`;
+    return `<pre class="code-block"${foldAttrs}>${languageLabel}${copyButton}${foldButton}<code class="hljs language-${escapeAttribute(highlightLanguage)}">${lines}</code></pre>`;
   };
   renderer.image = ({ href, title, text }: Tokens.Image) => {
     const src = resolveImageSource(href, baseUri, resolveImageUri);
@@ -120,6 +121,10 @@ export function renderMarkdown(
 
 function normalizeCodeFenceLanguage(lang: string | undefined): string {
   return (lang || '').trim().split(/\s+/, 1)[0].toLowerCase();
+}
+
+function getCodeLanguageLabel(language: string): string {
+  return language ? language.toUpperCase() : 'TEXT';
 }
 
 function resolveImageSource(

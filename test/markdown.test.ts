@@ -41,6 +41,87 @@ test('renders long code blocks expanded by default with a manual collapse contro
 
   const rendered = renderMarkdown(markdown, []);
 
-  assert.match(rendered.html, /<pre data-foldable data-folded="false">/);
+  assert.match(rendered.html, /<pre class="code-block" data-foldable data-folded="false">/);
   assert.match(rendered.html, /<button class="code-fold-toggle" aria-expanded="true" aria-label="Collapse code">Collapse<\/button>/);
+});
+
+test('highlights curated GitHub-common languages and falls back for long-tail languages', () => {
+  const markdown = [
+    '```ts',
+    'const count: number = 1;',
+    '```',
+    '',
+    '```python',
+    'print("hello")',
+    '```',
+    '',
+    '```elixir',
+    'IO.puts("hello")',
+    '```',
+  ].join('\n');
+
+  const rendered = renderMarkdown(markdown, []);
+
+  assert.match(rendered.html, /language-ts/);
+  assert.match(rendered.html, /language-python/);
+  assert.doesNotMatch(rendered.html, /language-elixir/);
+  assert.match(rendered.html, /language-plaintext/);
+});
+
+test('labels code blocks with the original fence language', () => {
+  const markdown = [
+    '```yml',
+    'enabled: true',
+    '```',
+    '',
+    '```elixir',
+    'IO.puts("hello")',
+    '```',
+    '',
+    '```',
+    'plain text',
+    '```',
+  ].join('\n');
+
+  const rendered = renderMarkdown(markdown, []);
+
+  assert.match(rendered.html, /<span class="code-language-label">YML<\/span>/);
+  assert.match(rendered.html, /<span class="code-language-label">ELIXIR<\/span>/);
+  assert.match(rendered.html, /<span class="code-language-label">TEXT<\/span>/);
+  assert.match(rendered.html, /<code class="hljs language-plaintext"><span class="code-line">IO\.puts/);
+});
+
+test('recognizes common configuration language aliases', () => {
+  const markdown = [
+    '```yml',
+    'enabled: true',
+    '```',
+    '',
+    '```toml',
+    'enabled = true',
+    '```',
+    '',
+    '```jsonc',
+    '{ "enabled": true }',
+    '```',
+    '',
+    '```env',
+    'APP_ENV=local',
+    '```',
+    '',
+    '```dotenv',
+    'APP_ENV=local',
+    '```',
+    '',
+    '```conf',
+    'enabled=true',
+    '```',
+  ].join('\n');
+
+  const rendered = renderMarkdown(markdown, []);
+
+  for (const language of ['yml', 'toml', 'jsonc', 'env', 'dotenv', 'conf']) {
+    assert.match(rendered.html, new RegExp(`language-${language}`));
+  }
+  assert.doesNotMatch(rendered.html, /language-plaintext/);
 });
