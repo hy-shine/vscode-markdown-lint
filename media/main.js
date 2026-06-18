@@ -618,73 +618,51 @@ function isPaperStyle() {
   return body.classList.contains('style-paper');
 }
 
-function getMermaidDesignTokens() {
-  const fontFamily = getComputedStyle(previewContent).fontFamily || getComputedStyle(body).fontFamily;
-  const isDark = isPreviewDarkAppearance();
-  const isPaper = isPaperStyle();
+function getCssColor(styles, name, fallback) {
+  const value = styles.getPropertyValue(name).trim();
+  return value || fallback;
+}
 
-  // Hardcoded palette for guaranteed readability.
-  // Dark mode: deep gray background, light gray nodes, bright text.
-  // Light mode: off-white background, white nodes, dark text.
-  // Paper mode: even flatter, no shadows, tighter geometry.
-  if (isDark) {
-    return {
-      fontFamily,
-      isDark: true,
-      curve: 'basis',
-      nodeRadius: 8,
-      clusterRadius: 12,
-      lineWidth: 1.2,
-      // Surfaces
-      background: '#1e1e1e',
-      nodeFill: '#2a2d33',
-      nodeFillAlt: '#32353c',
-      clusterFill: '#25282e',
-      labelFill: '#1e1e1e',
-      noteFill: '#2a2d33',
-      // Text (guaranteed bright)
-      text: '#e8eaed',
-      textSoft: '#9aa0a6',
-      textOnAccent: '#1e1e1e',
-      // Lines
-      edge: '#5f6368',
-      edgeActive: '#8ab4f8',
-      // Borders
-      border: '#3c4043',
-      borderStrong: '#5f6368',
-      // Shadows (minimal)
-      shellShadow: '0 1px 3px rgba(0,0,0,0.24)',
-      shellHoverShadow: '0 2px 6px rgba(0,0,0,0.32)',
-    };
-  }
+function getMermaidDesignTokens() {
+  const bodyStyles = getComputedStyle(body);
+  const previewStyles = getComputedStyle(previewContent);
+  const fontFamily = previewStyles.fontFamily || bodyStyles.fontFamily;
+  const isDark = isPreviewDarkAppearance();
+  const bg = getCssColor(bodyStyles, '--bg', isDark ? '#1d2026' : '#f6f8fb');
+  const panel = getCssColor(bodyStyles, '--panel', isDark ? '#303743' : '#ffffff');
+  const codeBg = getCssColor(bodyStyles, '--code-bg', isDark ? '#1d2026' : '#f6f8fb');
+  const surfaceSoft = getCssColor(bodyStyles, '--surface-soft', isDark ? '#29313c' : '#eef3f8');
+  const text = getCssColor(bodyStyles, '--text', isDark ? '#e8eaed' : '#202124');
+  const muted = getCssColor(bodyStyles, '--muted', isDark ? '#9aa0a6' : '#5f6368');
+  const accent = getCssColor(bodyStyles, '--accent', isDark ? '#8ab4f8' : '#1a73e8');
+  const border = getCssColor(bodyStyles, '--border', isDark ? '#353d49' : '#d7dee8');
 
   return {
     fontFamily,
-    isDark: false,
+    isDark,
     curve: 'basis',
-    nodeRadius: 8,
-    clusterRadius: 12,
-    lineWidth: 1.2,
-    // Surfaces
-    background: '#f8f9fa',
-    nodeFill: '#ffffff',
-    nodeFillAlt: '#f1f3f4',
-    clusterFill: '#f1f3f4',
-    labelFill: '#f8f9fa',
-    noteFill: '#ffffff',
-    // Text (guaranteed dark)
-    text: '#202124',
-    textSoft: '#5f6368',
-    textOnAccent: '#ffffff',
-    // Lines
-    edge: '#dadce0',
-    edgeActive: '#1a73e8',
-    // Borders
-    border: '#dadce0',
-    borderStrong: '#9aa0a6',
-    // Shadows (minimal)
-    shellShadow: '0 1px 2px rgba(60,64,67,0.08)',
-    shellHoverShadow: '0 1px 3px rgba(60,64,67,0.14)',
+    nodeRadius: 6,
+    clusterRadius: 8,
+    lineWidth: 1.0,
+    background: codeBg,
+    nodeFill: panel,
+    nodeFillAlt: surfaceSoft,
+    clusterFill: surfaceSoft,
+    labelFill: bg,
+    noteFill: panel,
+    text,
+    textSoft: muted,
+    textOnAccent: isDark ? '#1e1e1e' : '#ffffff',
+    edge: muted,
+    edgeActive: accent,
+    border,
+    borderStrong: accent,
+    shellShadow: isDark
+      ? 'inset 0 1px 0 rgba(255,255,255,0.03)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.78), 0 1px 2px rgba(31,35,40,0.04)',
+    shellHoverShadow: isDark
+      ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.12)'
+      : 'inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 26px rgba(31,35,40,0.08)',
   };
 }
 
@@ -788,22 +766,18 @@ async function loadMermaid() {
     return mermaidLoadPromise;
   }
 
-  mermaidLoadPromise = new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = window.MDLINT_MERMAID_URI || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
-    script.onload = () => {
-      if (window.mermaid) {
-        resolve(window.mermaid);
-      } else {
-        resolve(null);
+  const sources = mermaidRuntime.getMermaidScriptSources(window.MDLINT_MERMAID_URI);
+  mermaidLoadPromise = mermaidRuntime.loadScriptSequence(window, sources, 'mermaid')
+    .then((mermaid) => {
+      if (!mermaid) {
+        mermaidLoadPromise = null;
       }
-    };
-    script.onerror = () => {
+      return mermaid;
+    })
+    .catch(() => {
       mermaidLoadPromise = null;
-      resolve(null);
-    };
-    document.head.appendChild(script);
-  });
+      return null;
+    });
 
   return mermaidLoadPromise;
 }

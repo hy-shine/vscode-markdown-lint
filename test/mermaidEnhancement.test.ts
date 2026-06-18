@@ -206,7 +206,10 @@ test('creates Mermaid base config from design tokens and security level', () => 
   assert.equal(config.themeVariables.activeTaskBkgColor, '#1a73e8');
   assert.equal(config.flowchart.curve, 'basis');
   assert.equal(config.flowchart.htmlLabels, true);
-  assert.equal(config.sequence.actorMargin, 36);
+  assert.equal(config.flowchart.nodeSpacing, 24);
+  assert.equal(config.sequence.actorMargin, 28);
+  assert.equal(config.sequence.messageFontSize, 12);
+  assert.equal(config.sequence.mirrorActors, true);
   assert.equal(config.gantt.leftPadding, 84);
   assert.equal(config.journey.diagramMarginX, 28);
 });

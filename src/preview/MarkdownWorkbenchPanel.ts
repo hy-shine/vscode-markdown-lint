@@ -10,6 +10,7 @@ import { runPreviewChecks } from '../core/previewChecks';
 import { ScrollSyncSuppressor } from '../core/scrollSync';
 import { extractToc } from '../core/toc';
 import { PreviewCheck, PreviewMode, PreviewState, PreviewStyle, ThemeMode } from '../types';
+import { clearPreviewScrollSyncTimer } from './scrollSyncTimer';
 
 interface PreviewEntry {
   panel: vscode.WebviewPanel;
@@ -107,10 +108,9 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       return;
     }
 
-    if (entry.scrollSyncTimer) {
-      clearTimeout(entry.scrollSyncTimer);
-    }
+    clearPreviewScrollSyncTimer(entry);
     entry.scrollSyncTimer = setTimeout(() => {
+      entry.scrollSyncTimer = undefined;
       if (!entry.scrollSyncSuppressor.isActive(['preview', 'resize'])) {
         void entry.panel.webview.postMessage({ type: 'scrollToLine', value: line });
       }
@@ -145,6 +145,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     }
 
     for (const entry of this.previews.values()) {
+      clearPreviewScrollSyncTimer(entry);
       entry.scrollSyncSuppressor.dispose();
       entry.panel.dispose();
     }
@@ -269,6 +270,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     this.previews.set(getPreviewKey(sourceUri), entry);
 
     panel.onDidDispose(() => {
+      clearPreviewScrollSyncTimer(entry);
       entry.scrollSyncSuppressor.dispose();
       this.diagnosticCollection.delete(entry.sourceUri);
       this.previews.delete(getPreviewKey(entry.sourceUri));

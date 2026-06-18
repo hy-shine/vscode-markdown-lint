@@ -8,7 +8,9 @@ import {
   htmlContainsClass,
   stripPreviewOnlyCodeControlsForExport,
 } from './exportMarkup';
+import { buildKatexStylesheetTag, buildMermaidScriptTag } from './exportAssets';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
+import { inlineLocalImagesAsBase64 } from './exportPure';
 import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
 
@@ -44,43 +46,29 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     convertMermaidCodeBlocksForExport(rendered.html),
   );
 
-  // Convert local images to base64
-  const imgRegex = /<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g;
-  const replacements: { oldMatch: string, newMatch: string }[] = [];
-  
-  for (const match of finalHtmlContent.matchAll(imgRegex)) {
-    const fullMatch = match[0];
-    const src = match[2];
-    
-    if (src.startsWith('file://')) {
+  // Inline local images as base64 data URIs so the exported HTML is
+  // self-contained.
+  finalHtmlContent = await inlineLocalImagesAsBase64(
+    finalHtmlContent,
+    async (uri) => {
       try {
-        const fileUri = vscode.Uri.parse(src);
-        const fileData = await vscode.workspace.fs.readFile(fileUri);
-        const ext = path.extname(fileUri.fsPath).toLowerCase().slice(1);
-        const base64 = Buffer.from(fileData).toString('base64');
-        const mime = getImageMime(ext);
-        const newSrc = `data:${mime};base64,${base64}`;
-        const newMatch = fullMatch.replace(`src="${src}"`, `src="${newSrc}"`);
-        replacements.push({ oldMatch: fullMatch, newMatch });
+        return await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
       } catch (e) {
-        console.warn(`[markdown-lint] exportHtml: failed to load image ${src}`, e);
+        console.warn(`[markdown-lint] exportHtml: failed to load image ${uri}`, e);
+        throw e;
       }
-    }
-  }
-
-  for (const { oldMatch, newMatch } of replacements) {
-    finalHtmlContent = finalHtmlContent.replaceAll(oldMatch, newMatch);
-  }
+    },
+  );
 
   const themeMode = config.themeMode === 'auto'
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
   const katexStyleTag = htmlContainsClass(finalHtmlContent, 'katex')
-    ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">'
+    ? buildKatexStylesheetTag()
     : '';
   const mermaidRuntime = htmlContainsClass(finalHtmlContent, 'mermaid')
-    ? `  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    ? `${buildMermaidScriptTag()}
   <script>${buildMermaidExportRuntime(themeMode)}</script>`
     : '';
 
@@ -114,24 +102,6 @@ ${mermaidRuntime}
       void vscode.env.openExternal(targetUri);
     }
   });
-}
-
-function getImageMime(ext: string): string {
-  switch (ext) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'gif':
-      return 'image/gif';
-    case 'webp':
-      return 'image/webp';
-    case 'svg':
-      return 'image/svg+xml';
-    default:
-      return 'application/octet-stream';
-  }
 }
 
 function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): string {

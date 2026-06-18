@@ -4,10 +4,13 @@ import test from 'node:test';
 
 const require = createRequire(import.meta.url);
 const {
+  MERMAID_CDN_SRC,
   MERMAID_SECURITY_LEVEL,
   createEventListenerScope,
   createMermaidRenderSession,
+  getMermaidScriptSources,
   isDarkPreviewAppearance,
+  loadScriptSequence,
 } = require('../media/mermaidRuntime.js');
 
 test('uses antiscript as the default Mermaid security level', () => {
@@ -100,4 +103,71 @@ test('preview appearance follows VS Code theme classes in auto mode', () => {
 test('explicit preview theme overrides VS Code theme classes', () => {
   assert.equal(isDarkPreviewAppearance(classList('theme-light', 'vscode-dark')), false);
   assert.equal(isDarkPreviewAppearance(classList('theme-dark', 'vscode-light')), true);
+});
+
+test('Mermaid script sources try local URI before pinned CDN fallback', () => {
+  assert.deepEqual(getMermaidScriptSources('vscode-webview://local/mermaid.min.js'), [
+    'vscode-webview://local/mermaid.min.js',
+    'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.min.js',
+  ]);
+});
+
+test('Mermaid script sources avoid duplicate CDN entries', () => {
+  assert.deepEqual(getMermaidScriptSources(MERMAID_CDN_SRC), [MERMAID_CDN_SRC]);
+});
+
+test('script sequence loader retries the next source after an error', async () => {
+  const appended: any[] = [];
+  const environment: any = {
+    mermaid: undefined,
+    document: {
+      createElement() {
+        return {};
+      },
+      head: {
+        appendChild(script: any) {
+          appended.push(script);
+          if (appended.length === 1) {
+            script.onerror();
+            return;
+          }
+          environment.mermaid = { render: () => undefined };
+          script.onload();
+        },
+      },
+    },
+  };
+
+  const result = await loadScriptSequence(environment, ['local.js', 'cdn.js'], 'mermaid');
+
+  assert.equal(result, environment.mermaid);
+  assert.deepEqual(appended.map((script) => script.src), ['local.js', 'cdn.js']);
+});
+
+test('script sequence loader retries when a loaded script does not expose the global', async () => {
+  const appended: any[] = [];
+  const environment: any = {
+    mermaid: undefined,
+    document: {
+      createElement() {
+        return {};
+      },
+      head: {
+        appendChild(script: any) {
+          appended.push(script);
+          if (appended.length === 1) {
+            script.onload();
+            return;
+          }
+          environment.mermaid = { render: () => undefined };
+          script.onload();
+        },
+      },
+    },
+  };
+
+  const result = await loadScriptSequence(environment, ['local.js', 'cdn.js'], 'mermaid');
+
+  assert.equal(result, environment.mermaid);
+  assert.deepEqual(appended.map((script) => script.src), ['local.js', 'cdn.js']);
 });

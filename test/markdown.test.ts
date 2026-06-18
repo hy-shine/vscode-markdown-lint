@@ -91,7 +91,7 @@ test('labels code blocks with the original fence language', () => {
   assert.match(rendered.html, /<code class="hljs language-plaintext"><span class="code-line">IO\.puts/);
 });
 
-test('recognizes common configuration language aliases', () => {
+  test('recognizes common configuration language aliases', () => {
   const markdown = [
     '```yml',
     'enabled: true',
@@ -124,4 +124,45 @@ test('recognizes common configuration language aliases', () => {
     assert.match(rendered.html, new RegExp(`language-${language}`));
   }
   assert.doesNotMatch(rendered.html, /language-plaintext/);
+});
+
+test('renders inline KaTeX math', () => {
+  const rendered = renderMarkdown('Energy: $E=mc^2$', []);
+
+  assert.match(rendered.html, /<span class="katex">/);
+  assert.doesNotMatch(rendered.html, /katex-display/);
+});
+
+test('renders block KaTeX math in display mode', () => {
+  const rendered = renderMarkdown('$$E=mc^2$$', []);
+
+  assert.match(rendered.html, /<span class="katex-display">/);
+});
+
+test('does not render escaped dollar signs as math', () => {
+  const rendered = renderMarkdown('Cost is \\$5 and energy is $E=mc^2$', []);
+
+  const matches = rendered.html.match(/class="katex"/g) ?? [];
+  assert.equal(matches.length, 1, 'only the unescaped formula is rendered as math');
+});
+
+test('does not treat dollar signs inside inline code as math', () => {
+  const rendered = renderMarkdown('Price is `$5` and formula is $x$', []);
+
+  const matches = rendered.html.match(/class="katex"/g) ?? [];
+  assert.equal(matches.length, 1, 'only the real formula is rendered');
+});
+
+test('renders formulas with special symbols and Greek letters', () => {
+  const rendered = renderMarkdown('$\\frac{\\alpha + \\beta}{\\sum_{i=1}^{n} x_i} \\leq \\sqrt{2}$', []);
+
+  assert.match(rendered.html, /class="katex"/);
+  assert.match(rendered.html, /frac/);
+  assert.match(rendered.html, /α|\\alpha/);
+});
+
+test('renders invalid math without throwing', () => {
+  const rendered = renderMarkdown('$\\invalid{}$', []);
+
+  assert.match(rendered.html, /class="katex"/);
 });
