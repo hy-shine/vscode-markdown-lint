@@ -14,7 +14,6 @@ const styleOptions = document.getElementById('style-options');
 const formatButton = document.getElementById('format-button');
 const exportButton = document.getElementById('export-button');
 const floatingRefresh = document.getElementById('floating-refresh');
-const floatingBadge = document.getElementById('floating-badge');
 const themeValueEl = document.getElementById('theme-value');
 const placementValueEl = document.getElementById('placement-value');
 const styleValueEl = document.getElementById('style-value');
@@ -319,7 +318,6 @@ function initializeRenderedContent(state, mermaidRenderToken) {
   codeBlockControls.setup(previewContent);
   imageLightbox.setup(previewContent);
   updateActiveTocLink();
-  updateChecksBadge(state.checks);
 }
 
 function setBodyPresentation(themeMode, previewStyle) {
@@ -394,15 +392,6 @@ function renderToc(items) {
     });
     tocList.appendChild(link);
   }
-}
-
-function updateChecksBadge(checks) {
-  if (!checks || checks.length === 0) {
-    floatingBadge.hidden = true;
-    return;
-  }
-  floatingBadge.textContent = checks.length;
-  floatingBadge.hidden = false;
 }
 
 window.addEventListener('scroll', () => {

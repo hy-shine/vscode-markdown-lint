@@ -2228,26 +2228,6 @@ body.theme-auto.vscode-dark.style-typora .outline-panel {
   display: block;
 }
 
-.floating-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: var(--warning-bg);
-  color: var(--warning-fg);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-  text-align: center;
-  pointer-events: none;
-  z-index: 2;
-  box-shadow: 0 0 0 2px var(--bg);
-  font-variant-numeric: tabular-nums;
-}
-
 .floating-refresh {
   font-size: 16px;
 }

@@ -2,7 +2,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
-import { buildMermaidExportRuntime, convertMermaidCodeBlocksForExport } from './exportMarkup';
+import {
+  buildMermaidExportRuntime,
+  convertMermaidCodeBlocksForExport,
+  htmlContainsClass,
+  stripPreviewOnlyCodeControlsForExport,
+} from './exportMarkup';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { renderMarkdown } from './markdown';
 import { extractToc } from './toc';
@@ -35,7 +40,9 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   }
 
   // Convert Mermaid code blocks into renderable containers for exported HTML
-  let finalHtmlContent = convertMermaidCodeBlocksForExport(rendered.html);
+  let finalHtmlContent = stripPreviewOnlyCodeControlsForExport(
+    convertMermaidCodeBlocksForExport(rendered.html),
+  );
 
   // Convert local images to base64
   const imgRegex = /<img\s+([^>]*?)src="([^"]+)"([^>]*?)>/g;
@@ -69,7 +76,13 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);
-  const mermaidRuntime = buildMermaidExportRuntime(themeMode);
+  const katexStyleTag = htmlContainsClass(finalHtmlContent, 'katex')
+    ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">'
+    : '';
+  const mermaidRuntime = htmlContainsClass(finalHtmlContent, 'mermaid')
+    ? `  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>${buildMermaidExportRuntime(themeMode)}</script>`
+    : '';
 
   const tocHtml = config.showToc && toc.length > 0
     ? `<aside class="export-toc"><div class="export-toc-title">Table of contents</div><nav class="export-toc-list">${toc.map((item) => `<div class="export-toc-item level-${item.level}"><a href="#${escapeAttribute(item.slug)}">${escapeHtml(item.text)}</a></div>`).join('\n')}</nav></aside>`
@@ -82,7 +95,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(path.basename(sourceUri.fsPath, '.md'))}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+  ${katexStyleTag}
   <style>${styleCss}</style>
 </head>
 <body class="${bodyClass}">
@@ -90,8 +103,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     ${tocHtml}
     <article class="preview-content export-article">${finalHtmlContent}</article>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-  <script>${mermaidRuntime}</script>
+${mermaidRuntime}
 </body>
 </html>`;
 

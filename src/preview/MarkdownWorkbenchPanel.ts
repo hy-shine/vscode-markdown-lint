@@ -571,7 +571,6 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
             <circle cx="9.5" cy="14.75" r="1.9" fill="currentColor"/>
           </svg>
         </span>
-        <span class="floating-badge" id="floating-badge" hidden></span>
       </button>
       <div class="floating-menu" id="floating-menu">
         <div class="floating-menu-header">

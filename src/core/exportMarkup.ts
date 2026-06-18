@@ -5,8 +5,27 @@ export function convertMermaidCodeBlocksForExport(html: string): string {
   );
 }
 
+export function stripPreviewOnlyCodeControlsForExport(html: string): string {
+  return html
+    .replace(/<button\b[^>]*\bclass="[^"]*\bcode-copy-button\b[^"]*"[^>]*>[\s\S]*?<\/button>/g, '')
+    .replace(/<button\b[^>]*\bclass="[^"]*\bcode-fold-toggle\b[^"]*"[^>]*>[\s\S]*?<\/button>/g, '')
+    .replace(/\sdata-foldable\b/g, '')
+    .replace(/\sdata-folded="[^"]*"/g, '');
+}
+
+export function htmlContainsClass(html: string, className: string): boolean {
+  const classAttributePattern = /(?:^|[\s<])class\s*=\s*(["'])(.*?)\1/g;
+  for (const match of html.matchAll(classAttributePattern)) {
+    if (match[2].split(/\s+/).includes(className)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function buildMermaidExportRuntime(themeMode: string): string {
   const mermaidTheme = themeMode === 'dark' ? 'dark' : 'default';
+  const mermaidSecurityLevel = 'antiscript';
 
   return `
     document.addEventListener("DOMContentLoaded", async function() {
@@ -41,7 +60,7 @@ export function buildMermaidExportRuntime(themeMode: string): string {
       }
 
       try {
-        mermaid.initialize({ startOnLoad: false, theme: '${mermaidTheme}' });
+        mermaid.initialize({ startOnLoad: false, securityLevel: '${mermaidSecurityLevel}', theme: '${mermaidTheme}' });
       } catch (error) {
         for (const diagram of diagrams) {
           showMermaidError(diagram, 'Renderer initialization failed.');
