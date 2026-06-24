@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { exportHtml } from '../core/export';
-import { getWorkbenchConfig, updatePreviewMode, updatePreviewStyle, updateShowToc, updateThemeMode } from '../core/config';
+import { getWorkbenchConfig, updatePreviewMode, updatePreviewStyle, updateThemeMode } from '../core/config';
 import { formatMarkdownDocument } from '../core/formatter';
 import { resolvePreviewLinkTarget } from '../core/links';
 import { collectLocalImageRootUris } from '../core/localPaths';
@@ -399,10 +399,6 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         await updatePreviewStyle(message.value);
         await this.updateAll();
         return;
-      case 'toggleToc':
-        await updateShowToc(message.value);
-        await this.updateAll();
-        return;
       case 'revealLine': {
         const editor = vscode.window.visibleTextEditors.find(
           (e) => e.document.uri.toString() === entry.sourceUri.toString(),
@@ -583,11 +579,11 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <span class="floating-menu-group-copy">
             <span class="floating-menu-group-label">Theme</span>
           </span>
-          <span class="floating-menu-group-value" id="theme-value">Auto</span>
+          <span class="floating-menu-group-value" id="theme-value">System</span>
           <span class="floating-menu-group-arrow">&#9656;</span>
         </button>
         <div class="floating-menu-sub" id="theme-options">
-          <button class="floating-menu-item" data-value="auto">Auto</button>
+          <button class="floating-menu-item" data-value="system">System</button>
           <button class="floating-menu-item" data-value="light">Light</button>
           <button class="floating-menu-item" data-value="dark">Dark</button>
         </div>
@@ -655,7 +651,6 @@ type WebviewMessage =
   | { type: 'setThemeMode'; value: ThemeMode }
   | { type: 'setPreviewMode'; value: PreviewMode }
   | { type: 'setPreviewStyle'; value: PreviewStyle }
-  | { type: 'toggleToc'; value: boolean }
   | { type: 'revealLine'; value: number }
   | { type: 'formatDocument' }
   | { type: 'scrollToLine'; value: number }

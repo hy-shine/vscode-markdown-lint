@@ -15,11 +15,15 @@ export function getWorkbenchConfig(): WorkbenchConfig {
   const config = vscode.workspace.getConfiguration(SECTION);
 
   return {
-    themeMode: config.get<ThemeMode>('themeMode', 'auto'),
+    themeMode: normalizeThemeMode(config.get<ThemeMode | 'auto'>('themeMode', 'system')),
     previewMode: normalizePreviewMode(config.get<PreviewMode>('previewMode')),
     previewStyle: config.get<PreviewStyle>('previewStyle', 'default'),
     showToc: config.get<boolean>('showToc', true),
   };
+}
+
+function normalizeThemeMode(themeMode: ThemeMode | 'auto' | undefined): ThemeMode {
+  return themeMode === 'light' || themeMode === 'dark' ? themeMode : 'system';
 }
 
 export async function updateThemeMode(themeMode: ThemeMode): Promise<void> {

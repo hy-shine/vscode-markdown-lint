@@ -93,19 +93,7 @@
       return true;
     }
 
-    if (hasClass(classList, 'theme-light')) {
-      return false;
-    }
-
-    if (!hasClass(classList, 'theme-auto')) {
-      return false;
-    }
-
-    if (hasClass(classList, 'vscode-light')) {
-      return false;
-    }
-
-    return hasClass(classList, 'vscode-dark') || hasClass(classList, 'vscode-high-contrast');
+    return false;
   }
 
   function getMermaidScriptSources(localSrc, fallbackSrc = MERMAID_CDN_SRC) {

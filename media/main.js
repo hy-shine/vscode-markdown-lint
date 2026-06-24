@@ -21,7 +21,7 @@ const styleValueEl = document.getElementById('style-value');
 const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 
 let currentState = {
-  themeMode: 'auto',
+  themeMode: 'system',
   previewMode: 'beside',
   previewStyle: 'default',
   tocVisible: true,
@@ -321,10 +321,18 @@ function initializeRenderedContent(state, mermaidRenderToken) {
 }
 
 function setBodyPresentation(themeMode, previewStyle) {
-  body.classList.remove('theme-auto', 'theme-light', 'theme-dark');
+  body.classList.remove('theme-light', 'theme-dark');
   body.classList.remove('style-default', 'style-github', 'style-notion', 'style-tokyo-night', 'style-obsidian', 'style-paper', 'style-typora');
-  body.classList.add(`theme-${themeMode}`);
+  body.classList.add(`theme-${resolveThemeMode(themeMode)}`);
   body.classList.add(`style-${previewStyle}`);
+}
+
+function resolveThemeMode(themeMode) {
+  if (themeMode !== 'system') {
+    return themeMode;
+  }
+
+  return body.classList.contains('vscode-light') ? 'light' : 'dark';
 }
 
 function syncFloatingMenu(themeMode, previewStyle, previewMode) {
@@ -338,7 +346,7 @@ function syncFloatingMenu(themeMode, previewStyle, previewMode) {
     item.classList.toggle('is-active', item.dataset.value === previewStyle);
   }
   if (themeValueEl) {
-    const themeLabels = { auto: 'System', light: 'Light', dark: 'Dark' };
+    const themeLabels = { system: 'System', light: 'Light', dark: 'Dark' };
     themeValueEl.textContent = themeLabels[themeMode] || themeMode;
   }
   if (placementValueEl) {

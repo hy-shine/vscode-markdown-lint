@@ -94,15 +94,10 @@ function classList(...classes: string[]) {
   };
 }
 
-test('preview appearance follows VS Code theme classes in auto mode', () => {
-  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-light')), false);
-  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-dark')), true);
-  assert.equal(isDarkPreviewAppearance(classList('theme-auto', 'vscode-high-contrast')), true);
-});
-
-test('explicit preview theme overrides VS Code theme classes', () => {
+test('preview appearance follows the resolved light or dark theme class', () => {
   assert.equal(isDarkPreviewAppearance(classList('theme-light', 'vscode-dark')), false);
   assert.equal(isDarkPreviewAppearance(classList('theme-dark', 'vscode-light')), true);
+  assert.equal(isDarkPreviewAppearance(classList('vscode-dark')), false);
 });
 
 test('Mermaid script sources try local URI before pinned CDN fallback', () => {

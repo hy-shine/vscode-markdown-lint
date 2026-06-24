@@ -36,7 +36,7 @@ Choose a look that fits your workflow:
 | **Paper**       | Ink on cream paper, print-ready                |
 | **Typora**      | Typora-inspired Whitey / Night themes          |
 
-Each style supports **Auto / Light / Dark** mode and switches with your VS Code theme when set to Auto.
+Each style supports **System / Light / Dark** mode. System follows your VS Code theme and resolves to the preview's light or dark palette.
 
 ### Table of Contents & Scroll Sync
 
@@ -65,7 +65,7 @@ For compatibility with earlier releases, the setting IDs still use the historica
 
 | Setting                      | Default   | Options                                                                           |
 | ---------------------------- | --------- | --------------------------------------------------------------------------------- |
-| `markdown-lint.themeMode`    | `auto`    | `auto` · `light` · `dark`                                                         |
+| `markdown-lint.themeMode`    | `system`  | `system` · `light` · `dark`                                                       |
 | `markdown-lint.previewMode`  | `beside`  | `beside` · `inline`                                                               |
 | `markdown-lint.previewStyle` | `default` | `default` · `github` · `notion` · `tokyo-night` · `obsidian` · `paper` · `typora` |
 | `markdown-lint.showToc`      | `true`    | `true` · `false`                                                                  |

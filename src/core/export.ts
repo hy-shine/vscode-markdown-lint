@@ -60,7 +60,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     },
   );
 
-  const themeMode = config.themeMode === 'auto'
+  const themeMode = config.themeMode === 'system'
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
   const styleCss = loadExportCss(context, themeMode, config.previewStyle);

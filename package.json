@@ -79,11 +79,11 @@
         "markdown-lint.themeMode": {
           "type": "string",
           "enum": [
-            "auto",
+            "system",
             "light",
             "dark"
           ],
-          "default": "auto",
+          "default": "system",
           "description": "Theme mode for the Markdown Preview Lite preview."
         },
         "markdown-lint.previewStyle": {

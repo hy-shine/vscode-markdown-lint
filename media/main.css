@@ -56,21 +56,6 @@ body.theme-dark {
   --surface-soft: #2b2b2c !important;
 }
 
-body.theme-auto {
-  --bg: var(--vscode-editor-background);
-  --panel: var(--vscode-sideBar-background);
-  --toolbar: color-mix(in srgb, var(--bg) 82%, white 18%);
-  --border: var(--vscode-panel-border, rgba(128, 128, 128, 0.3));
-  --text: var(--vscode-editor-foreground);
-  --muted: var(--vscode-descriptionForeground);
-  --accent: var(--vscode-textLink-foreground);
-  --code-bg: color-mix(in srgb, var(--bg) 88%, black 12%);
-  --code-border: color-mix(in srgb, var(--border) 76%, transparent);
-  --inline-code-bg: color-mix(in srgb, var(--code-bg) 88%, var(--panel) 12%);
-  --inline-code-text: var(--text);
-  --surface-soft: color-mix(in srgb, var(--panel) 70%, var(--bg) 30%);
-}
-
 body {
   --code-border: color-mix(in srgb, var(--border) 76%, transparent);
   --inline-code-bg: color-mix(in srgb, var(--code-bg) 88%, var(--panel) 12%);
@@ -610,76 +595,6 @@ body.theme-light .hljs-variable.language {
   color: #e45649;
 }
 
-/* ===== hljs: auto mode (VS Code light theme) ===== */
-body.theme-auto.vscode-light .hljs {
-  color: #383a42;
-}
-body.theme-auto.vscode-light .hljs-comment,
-body.theme-auto.vscode-light .hljs-quote {
-  color: #a0a1a7;
-}
-body.theme-auto.vscode-light .hljs-doctag,
-body.theme-auto.vscode-light .hljs-keyword,
-body.theme-auto.vscode-light .hljs-formula {
-  color: #a626a4;
-}
-body.theme-auto.vscode-light .hljs-section,
-body.theme-auto.vscode-light .hljs-name,
-body.theme-auto.vscode-light .hljs-selector-tag,
-body.theme-auto.vscode-light .hljs-deletion,
-body.theme-auto.vscode-light .hljs-subst {
-  color: #e45649;
-}
-body.theme-auto.vscode-light .hljs-literal {
-  color: #0184bb;
-}
-body.theme-auto.vscode-light .hljs-string,
-body.theme-auto.vscode-light .hljs-regexp,
-body.theme-auto.vscode-light .hljs-addition,
-body.theme-auto.vscode-light .hljs-attribute,
-body.theme-auto.vscode-light .hljs-meta .hljs-string {
-  color: #50a14f;
-}
-body.theme-auto.vscode-light .hljs-attr,
-body.theme-auto.vscode-light .hljs-variable,
-body.theme-auto.vscode-light .hljs-template-variable,
-body.theme-auto.vscode-light .hljs-type,
-body.theme-auto.vscode-light .hljs-selector-class,
-body.theme-auto.vscode-light .hljs-selector-attr,
-body.theme-auto.vscode-light .hljs-selector-pseudo,
-body.theme-auto.vscode-light .hljs-number {
-  color: #986801;
-}
-body.theme-auto.vscode-light .hljs-symbol,
-body.theme-auto.vscode-light .hljs-bullet,
-body.theme-auto.vscode-light .hljs-link,
-body.theme-auto.vscode-light .hljs-meta,
-body.theme-auto.vscode-light .hljs-selector-id,
-body.theme-auto.vscode-light .hljs-title {
-  color: #4078f2;
-}
-body.theme-auto.vscode-light .hljs-built_in,
-body.theme-auto.vscode-light .hljs-title.class_,
-body.theme-auto.vscode-light .hljs-class .hljs-title {
-  color: #c18401;
-}
-body.theme-auto.vscode-light .hljs-function,
-body.theme-auto.vscode-light .hljs-function .hljs-title {
-  color: #4078f2;
-}
-body.theme-auto.vscode-light .hljs-function .hljs-params {
-  color: #383a42;
-}
-body.theme-auto.vscode-light .hljs-title.function {
-  color: #4078f2;
-}
-body.theme-auto.vscode-light .hljs-operator {
-  color: #0184bb;
-}
-body.theme-auto.vscode-light .hljs-variable.language {
-  color: #e45649;
-}
-
 .preview-content blockquote {
   margin: 1.2em 0;
   padding-left: 1em;
@@ -770,7 +685,6 @@ body.theme-auto.vscode-light .hljs-variable.language {
 .mermaid-diagram:hover {
   border-color: color-mix(in srgb, var(--mdlint-mermaid-border-strong, #9aa0a6) 54%, transparent);
   box-shadow: var(--mdlint-mermaid-shell-hover-shadow, none);
-  transform: translateY(-1px);
 }
 
 .mermaid-diagram:hover .mermaid-zoom-controls,
@@ -1304,8 +1218,7 @@ body.style-github {
   --code-bg: #151b23 !important;
 }
 
-body.theme-light.style-github,
-body.theme-auto.vscode-light.style-github {
+body.theme-light.style-github {
   --bg: #ffffff !important;
   --panel: #f6f8fa !important;
   --toolbar: #f6f8fa !important;
@@ -1347,7 +1260,7 @@ body.style-github .preview-content h3 {
 body.style-github .preview-content h4 {
   font-size: 1.1em;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--text);
 }
 
 body.style-github .preview-content p,
@@ -1451,18 +1364,17 @@ body.style-github .mermaid-diagram {
 
 /* ===== Notion ===== */
 body.style-notion {
-  --bg: #2f3437 !important;
-  --panel: #202020 !important;
-  --toolbar: #202020 !important;
-  --border: rgba(255, 255, 255, 0.09) !important;
-  --text: #e6e6e6 !important;
-  --muted: #999999 !important;
+  --bg: #191919 !important;
+  --panel: #252525 !important;
+  --toolbar: #2f2f2f !important;
+  --border: rgba(255, 252, 239, 0.1) !important;
+  --text: #fffcef !important;
+  --muted: #9b9a97 !important;
   --accent: #529cca !important;
-  --code-bg: #262626 !important;
+  --code-bg: #2f2f2f !important;
 }
 
-body.theme-light.style-notion,
-body.theme-auto.vscode-light.style-notion {
+body.theme-light.style-notion {
   --bg: #ffffff !important;
   --panel: #f7f6f3 !important;
   --toolbar: #f7f6f3 !important;
@@ -1539,10 +1451,10 @@ body.style-notion .preview-content a:hover {
 }
 
 body.style-notion .preview-content blockquote {
-  border-left: 3px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
-  border-radius: 0 10px 10px 0;
-  padding: 0.75em 1em;
+  border-left: 3px solid color-mix(in srgb, var(--text) 18%, transparent);
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  border-radius: 3px;
+  padding: 0.6em 0.9em;
   color: var(--text);
 }
 
@@ -1599,11 +1511,11 @@ body.style-notion .mermaid-diagram {
 }
 
 body.style-notion .preview-content .callout {
-  padding: 1em;
-  border-radius: 4px;
+  padding: 0.85em 1em;
+  border-radius: 3px;
   margin: 1em 0;
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  background: color-mix(in srgb, var(--panel) 78%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 /* ===== Tokyo Night ===== */
@@ -1618,8 +1530,7 @@ body.style-tokyo-night {
   --code-bg: #1f2328 !important;
 }
 
-body.theme-light.style-tokyo-night,
-body.theme-auto.vscode-light.style-tokyo-night {
+body.theme-light.style-tokyo-night {
   --bg: #e6e7ed !important;
   --panel: #dcdee3 !important;
   --toolbar: #dcdee3 !important;
@@ -1780,8 +1691,7 @@ body.style-obsidian {
   --code-bg: #1a1a1a !important;
 }
 
-body.theme-light.style-obsidian,
-body.theme-auto.vscode-light.style-obsidian {
+body.theme-light.style-obsidian {
   --bg: #ffffff !important;
   --panel: #f3f3f3 !important;
   --toolbar: #f3f3f3 !important;
@@ -1845,12 +1755,11 @@ body.style-obsidian .preview-content a:hover {
 }
 
 body.style-obsidian .preview-content blockquote {
-  border-left: 4px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
-  border-radius: 0 6px 6px 0;
-  padding: 0.6em 1.2em;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  border-radius: 6px;
+  padding: 0.75em 1em;
   color: var(--text);
-  font-style: italic;
 }
 
 body.style-obsidian .preview-content pre {
@@ -1920,8 +1829,7 @@ body.style-obsidian .mermaid-diagram:hover {
 }
 
 /* ===== Paper ===== */
-body.theme-light.style-paper,
-body.theme-auto.vscode-light.style-paper {
+body.theme-light.style-paper {
   --bg: #ffffff !important;
   --panel: #fafaf8 !important;
   --toolbar: #f5f5f0 !important;
@@ -1936,8 +1844,7 @@ body.theme-auto.vscode-light.style-paper {
   --surface-soft: #f5f5f0 !important;
 }
 
-body.theme-dark.style-paper,
-body.theme-auto.vscode-dark.style-paper {
+body.theme-dark.style-paper {
   --bg: #1a1814 !important;
   --panel: #242220 !important;
   --toolbar: #242220 !important;
@@ -2216,11 +2123,10 @@ body.style-typora {
   --surface-soft: #2E3033 !important;
 }
 
-body.theme-light.style-typora,
-body.theme-auto.vscode-light.style-typora {
-  --bg: #faf8f5 !important;
-  --panel: #fffdf9 !important;
-  --toolbar: #f7f4ef !important;
+body.theme-light.style-typora {
+  --bg: #fefefe !important;
+  --panel: #fafafa !important;
+  --toolbar: #f8f8f8 !important;
   --border: #ddd !important;
   --text: #333 !important;
   --muted: #777 !important;
@@ -2240,8 +2146,7 @@ body.style-typora .preview-content {
   color: var(--text);
 }
 
-body.theme-light.style-typora .preview-content,
-body.theme-auto.vscode-light.style-typora .preview-content {
+body.theme-light.style-typora .preview-content {
   font-family: Vollkorn, Palatino, Georgia, 'Times New Roman', Times, serif;
   font-size: 18px;
   line-height: 1.6;
@@ -2260,9 +2165,7 @@ body.style-typora .preview-content h6 {
 }
 
 body.theme-light.style-typora .preview-content h1,
-body.theme-light.style-typora .preview-content h2,
-body.theme-auto.vscode-light.style-typora .preview-content h1,
-body.theme-auto.vscode-light.style-typora .preview-content h2 {
+body.theme-light.style-typora .preview-content h2 {
   font-weight: bold;
 }
 
@@ -2399,26 +2302,166 @@ body.style-typora .mermaid-diagram {
 }
 
 /* Typora: light TOC */
-body.theme-light.style-typora .outline-panel,
-body.theme-auto.vscode-light.style-typora .outline-panel {
+body.theme-light.style-typora .outline-panel {
   font-family: Vollkorn, Palatino, Georgia, 'Times New Roman', Times, serif;
   font-size: 13px;
   line-height: 1.5;
 }
 
-body.theme-light.style-typora .toc-link.is-active,
-body.theme-auto.vscode-light.style-typora .toc-link.is-active {
+body.theme-light.style-typora .toc-link.is-active {
   border-left-color: var(--accent);
   background: transparent;
   font-weight: 600;
 }
 
 /* Typora: dark TOC */
-body.theme-dark.style-typora .outline-panel,
-body.theme-auto.vscode-dark.style-typora .outline-panel {
+body.theme-dark.style-typora .outline-panel {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* ===== Style-specific syntax colors ===== */
+body.style-github {
+  --syntax-text: #e6edf3;
+  --syntax-comment: #8b949e;
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #a5d6ff;
+  --syntax-number: #79c0ff;
+  --syntax-title: #d2a8ff;
+  --syntax-type: #ffa657;
+  --syntax-meta: #7ee787;
+}
+
+body.theme-light.style-github {
+  --syntax-text: #24292f;
+  --syntax-comment: #6e7781;
+  --syntax-keyword: #cf222e;
+  --syntax-string: #0a3069;
+  --syntax-number: #0550ae;
+  --syntax-title: #8250df;
+  --syntax-type: #953800;
+  --syntax-meta: #116329;
+}
+
+body.style-notion {
+  --syntax-text: #fffcef;
+  --syntax-comment: #85827d;
+  --syntax-keyword: #ff9d66;
+  --syntax-string: #7dd3aa;
+  --syntax-number: #d4a373;
+  --syntax-title: #82b4ff;
+  --syntax-type: #d9a3ff;
+  --syntax-meta: #a8a29e;
+}
+
+body.theme-light.style-notion {
+  --syntax-text: #37352f;
+  --syntax-comment: #9b9a97;
+  --syntax-keyword: #a35f00;
+  --syntax-string: #448361;
+  --syntax-number: #986801;
+  --syntax-title: #337ea9;
+  --syntax-type: #9065b0;
+  --syntax-meta: #6b6b6b;
+}
+
+body.style-tokyo-night {
+  --syntax-text: #a9b1d6;
+  --syntax-comment: #565f89;
+  --syntax-keyword: #bb9af7;
+  --syntax-string: #9ece6a;
+  --syntax-number: #ff9e64;
+  --syntax-title: #7aa2f7;
+  --syntax-type: #2ac3de;
+  --syntax-meta: #e0af68;
+}
+
+body.theme-light.style-tokyo-night {
+  --syntax-text: #343b58;
+  --syntax-comment: #7c8094;
+  --syntax-keyword: #5a4a78;
+  --syntax-string: #33635c;
+  --syntax-number: #8f5e15;
+  --syntax-title: #2959aa;
+  --syntax-type: #166775;
+  --syntax-meta: #7a5a00;
+}
+
+body.style-obsidian {
+  --syntax-text: #d4d4d4;
+  --syntax-comment: #858585;
+  --syntax-keyword: #c792ea;
+  --syntax-string: #c3e88d;
+  --syntax-number: #f78c6c;
+  --syntax-title: #82aaff;
+  --syntax-type: #ffcb6b;
+  --syntax-meta: #89ddff;
+}
+
+body.theme-light.style-obsidian {
+  --syntax-text: #2e2e2e;
+  --syntax-comment: #727272;
+  --syntax-keyword: #7f4fb3;
+  --syntax-string: #427a28;
+  --syntax-number: #9f4d26;
+  --syntax-title: #315fbd;
+  --syntax-type: #7b5d00;
+  --syntax-meta: #007579;
+}
+
+body.style-typora {
+  --syntax-text: #b8bfc6;
+  --syntax-comment: #8a8f96;
+  --syntax-keyword: #c678dd;
+  --syntax-string: #98c379;
+  --syntax-number: #d19a66;
+  --syntax-title: #61aeee;
+  --syntax-type: #e6c07b;
+  --syntax-meta: #56b6c2;
+}
+
+body.theme-light.style-typora {
+  --syntax-text: #333333;
+  --syntax-comment: #8a8a8a;
+  --syntax-keyword: #9b2393;
+  --syntax-string: #2f7d32;
+  --syntax-number: #8f5e15;
+  --syntax-title: #1f6fb2;
+  --syntax-type: #795e26;
+  --syntax-meta: #267f99;
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs, .language-bash) {
+  color: var(--syntax-text);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-comment, .hljs-quote) {
+  color: var(--syntax-comment);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-keyword, .hljs-doctag, .hljs-formula) {
+  color: var(--syntax-keyword);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute, .hljs-meta .hljs-string) {
+  color: var(--syntax-string);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-number, .hljs-literal, .hljs-attr, .hljs-variable, .hljs-template-variable) {
+  color: var(--syntax-number);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-title, .hljs-function, .hljs-function .hljs-title, .hljs-title.function, .language-bash .hljs-command) {
+  color: var(--syntax-title);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-class .hljs-title, .language-bash .hljs-built_in) {
+  color: var(--syntax-type);
+}
+
+body:is(.style-github, .style-notion, .style-tokyo-night, .style-obsidian, .style-typora) :is(.hljs-symbol, .hljs-bullet, .hljs-link, .hljs-meta, .hljs-selector-id, .hljs-operator) {
+  color: var(--syntax-meta);
 }
 
 /* ===== Floating Controls ===== */

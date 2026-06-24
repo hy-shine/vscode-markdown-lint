@@ -1,4 +1,4 @@
-export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type PreviewMode = 'inline' | 'beside';
 
