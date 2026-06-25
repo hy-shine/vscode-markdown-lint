@@ -1,13 +1,24 @@
 # Changelog
 
-## Unreleased
+## [0.6.0] - 2026-06-25
 
 ### Added
 - Add configurable inline or side-by-side preview placement with `markdown-lint.previewMode`.
-- Add commands to open the current preview inline or to the side without changing the global default.
+- Add lightweight preview checks for missing images, broken links, empty headings, and duplicate headings.
+- Label code blocks with their original fence language.
 
 ### Changed
 - Open long code blocks expanded by default while keeping the manual collapse control.
+- Improve performance with IntersectionObserver heading tracking and curated highlight.js languages.
+- Split webview controls and Mermaid interactions into separate modules.
+- Load external export assets only when needed.
+
+### Fixed
+- Fix Mermaid diagram theme integration to use CSS variables instead of hardcoded palettes.
+- Fix inline code contrast in default light theme to meet WCAG AA standards.
+- Fix scrollSyncTimer leak and align export CDN versions.
+- Improve theme consistency across all preview styles.
+- Skip YAML front matter in TOC extraction and preview checks.
 
 ## [0.5.0] - 2026-06-10
 

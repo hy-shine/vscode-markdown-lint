@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
@@ -12,9 +11,11 @@ import { buildKatexStylesheetTag, buildMermaidScriptTag } from './exportAssets';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { inlineLocalImagesAsBase64 } from './exportPure';
 import { renderMarkdown } from './markdown';
+import { chooseMarkdownSource, readDiskMarkdown } from './markdownSourcePure';
 import { extractToc } from './toc';
 
-export async function exportHtml(sourceUri: vscode.Uri, context: vscode.ExtensionContext): Promise<void> {
+export async function exportHtml(document: vscode.TextDocument, context: vscode.ExtensionContext): Promise<void> {
+  const sourceUri = document.uri;
   const targetUri = await vscode.window.showSaveDialog({
     title: 'Export Markdown to HTML',
     defaultUri: vscode.Uri.file(sourceUri.fsPath.replace(/\.md$/, '.html')),
@@ -27,8 +28,10 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
     return;
   }
 
-  const markdown = await vscode.workspace.fs.readFile(sourceUri);
-  const markdownText = new TextDecoder().decode(markdown);
+  const diskText = await readDiskMarkdown(document.isDirty, () =>
+    vscode.workspace.fs.readFile(sourceUri),
+  );
+  const markdownText = chooseMarkdownSource(document.isDirty, document.getText(), diskText);
   const config = getWorkbenchConfig();
   const toc = extractToc(markdownText);
   const baseUri = vscode.Uri.joinPath(sourceUri, '..');
@@ -63,7 +66,7 @@ export async function exportHtml(sourceUri: vscode.Uri, context: vscode.Extensio
   const themeMode = config.themeMode === 'system'
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
-  const styleCss = loadExportCss(context, themeMode, config.previewStyle);
+  const styleCss = await loadExportCss(context, themeMode, config.previewStyle);
   const katexStyleTag = htmlContainsClass(finalHtmlContent, 'katex')
     ? buildKatexStylesheetTag()
     : '';
@@ -104,10 +107,10 @@ ${mermaidRuntime}
   });
 }
 
-function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): string {
-  const cssPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'main.css').fsPath;
+async function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): Promise<string> {
+  const cssUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'main.css');
   try {
-    let css = fs.readFileSync(cssPath, 'utf-8');
+    let css = new TextDecoder().decode(await vscode.workspace.fs.readFile(cssUri));
     css += `
 .export-body {
   margin: 0;

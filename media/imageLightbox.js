@@ -8,15 +8,25 @@
   function createImageLightbox(options = {}) {
     const documentRef = options.document || root.document;
     const body = documentRef.body;
+    const zoomStep = 0.15;
+    const minScale = 0.25;
+    const maxScale = 6;
     let lastTrigger = null;
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let startX = 0;
+    let startY = 0;
 
     function setup(previewContent) {
       const images = previewContent.querySelectorAll('img');
       for (const img of images) {
-        if (!img.getAttribute('src') || img.closest('a')) {
+        if (img.__mdlintImageLightboxBound || !img.getAttribute('src') || img.closest('a')) {
           continue;
         }
 
+        img.__mdlintImageLightboxBound = true;
         img.classList.add('preview-image-lightbox-trigger');
         img.tabIndex = 0;
         img.addEventListener('click', (e) => {
@@ -45,6 +55,7 @@
       }
 
       lastTrigger = trigger || null;
+      resetImageView(image);
       image.src = src;
       image.alt = alt;
       if (caption) {
@@ -88,6 +99,66 @@
       lastTrigger = null;
     }
 
+    function resetImageView(image) {
+      scale = 1;
+      panX = 0;
+      panY = 0;
+      isPanning = false;
+      applyImageTransform(image);
+      image.style.cursor = 'grab';
+    }
+
+    function zoomImage(image, nextScale) {
+      scale = Math.min(Math.max(nextScale, minScale), maxScale);
+      applyImageTransform(image);
+    }
+
+    function applyImageTransform(image) {
+      image.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    }
+
+    function bindImageInteractions(image) {
+      image.style.transformOrigin = 'center center';
+      image.style.touchAction = 'none';
+      image.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) {
+          return;
+        }
+        isPanning = true;
+        startX = e.clientX - panX;
+        startY = e.clientY - panY;
+        image.style.cursor = 'grabbing';
+        image.setPointerCapture?.(e.pointerId);
+      });
+      image.addEventListener('pointermove', (e) => {
+        if (!isPanning) {
+          return;
+        }
+        e.preventDefault();
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        applyImageTransform(image);
+      });
+      image.addEventListener('pointerup', (e) => finishPanning(image, e));
+      image.addEventListener('pointercancel', (e) => finishPanning(image, e));
+      image.addEventListener('dblclick', () => resetImageView(image));
+      image.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        zoomImage(image, scale + (e.deltaY < 0 ? zoomStep : -zoomStep));
+      }, { passive: false });
+    }
+
+    function finishPanning(image, e) {
+      if (!isPanning) {
+        return;
+      }
+      isPanning = false;
+      if (e?.pointerId !== undefined && image.hasPointerCapture?.(e.pointerId)) {
+        image.releasePointerCapture?.(e.pointerId);
+      }
+      image.style.cursor = 'grab';
+    }
+
     function ensure() {
       let lightbox = documentRef.getElementById('image-lightbox');
       if (lightbox) {
@@ -107,12 +178,35 @@
       closeButton.setAttribute('aria-label', 'Close image preview');
       closeButton.textContent = '\u00d7';
 
+      const toolbar = documentRef.createElement('div');
+      toolbar.classList.add('image-lightbox-toolbar');
+
+      const zoomIn = createToolButton('image-lightbox-zoom-in', 'Zoom image in', '+');
+      const zoomOut = createToolButton('image-lightbox-zoom-out', 'Zoom image out', '\u2212');
+      const reset = createToolButton('image-lightbox-reset', 'Reset image view', 'Reset');
+      toolbar.appendChild(zoomOut);
+      toolbar.appendChild(reset);
+      toolbar.appendChild(zoomIn);
+
       const figure = documentRef.createElement('figure');
       figure.classList.add('image-lightbox-frame');
 
       const image = documentRef.createElement('img');
       image.classList.add('image-lightbox-image');
       image.alt = '';
+      bindImageInteractions(image);
+      zoomIn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        zoomImage(image, scale + zoomStep);
+      });
+      zoomOut.addEventListener('click', (e) => {
+        e.stopPropagation();
+        zoomImage(image, scale - zoomStep);
+      });
+      reset.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetImageView(image);
+      });
 
       const caption = documentRef.createElement('figcaption');
       caption.classList.add('image-lightbox-caption');
@@ -121,6 +215,7 @@
       figure.appendChild(image);
       figure.appendChild(caption);
       lightbox.appendChild(closeButton);
+      lightbox.appendChild(toolbar);
       lightbox.appendChild(figure);
 
       lightbox.addEventListener('click', (e) => {
@@ -132,6 +227,16 @@
 
       body.appendChild(lightbox);
       return lightbox;
+    }
+
+    function createToolButton(className, label, text) {
+      const button = documentRef.createElement('button');
+      button.classList.add('image-lightbox-tool');
+      button.classList.add(className);
+      button.setAttribute('type', 'button');
+      button.setAttribute('aria-label', label);
+      button.textContent = text;
+      return button;
     }
 
     return {

@@ -9,8 +9,10 @@ import { resolvePreviewMode } from '../core/previewMode';
 import { runPreviewChecks } from '../core/previewChecks';
 import { ScrollSyncSuppressor } from '../core/scrollSync';
 import { extractToc } from '../core/toc';
+import { chooseMarkdownSource, readDiskMarkdown } from '../core/markdownSourcePure';
 import { PreviewCheck, PreviewMode, PreviewState, PreviewStyle, ThemeMode } from '../types';
 import { clearPreviewScrollSyncTimer } from './scrollSyncTimer';
+import { PREVIEW_EDITOR_VIEW_TYPE } from './constants';
 
 interface PreviewEntry {
   panel: vscode.WebviewPanel;
@@ -19,6 +21,11 @@ interface PreviewEntry {
   sourceViewColumn?: vscode.ViewColumn;
   scrollSyncSuppressor: ScrollSyncSuppressor;
   scrollSyncTimer?: ReturnType<typeof setTimeout>;
+  updateGeneration: number;
+  surface: 'dynamic' | 'custom';
+  ready: boolean;
+  replaceAfterReady?: PreviewEntry;
+  initialFragment?: string;
 }
 
 interface PreviewOpenOptions {
@@ -26,7 +33,7 @@ interface PreviewOpenOptions {
   sourceViewColumn?: vscode.ViewColumn;
 }
 
-export class MarkdownWorkbenchPanel implements vscode.Disposable {
+export class MarkdownWorkbenchPanel implements vscode.Disposable, vscode.WebviewPanelSerializer {
   private readonly previews = new Map<string, PreviewEntry>();
   private activeSourceUri: vscode.Uri | undefined;
   private readonly disposables: vscode.Disposable[] = [];
@@ -72,6 +79,56 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     return true;
   }
 
+  public getActiveSourceUri(): vscode.Uri | undefined {
+    return this.activeSourceUri;
+  }
+
+  public getSourceViewColumn(sourceUri: vscode.Uri): vscode.ViewColumn | undefined {
+    return this.getEntry(sourceUri)?.sourceViewColumn;
+  }
+
+  public async showSourceForActivePreview(): Promise<boolean> {
+    const entry = this.activeSourceUri ? this.getEntry(this.activeSourceUri) : undefined;
+    if (!entry) {
+      return false;
+    }
+
+    if (entry.surface === 'custom') {
+      await vscode.commands.executeCommand('reopenActiveEditorWith', 'default');
+      return true;
+    }
+
+    const document = await vscode.workspace.openTextDocument(entry.sourceUri);
+    await vscode.window.showTextDocument(document, {
+      viewColumn: entry.sourceViewColumn ?? vscode.ViewColumn.Active,
+      preview: false,
+      preserveFocus: false,
+    });
+    return true;
+  }
+
+  public attachCustomEditor(
+    document: vscode.TextDocument,
+    panel: vscode.WebviewPanel,
+    initialFragment?: string,
+  ): void {
+    const sourceUri = document.uri;
+    const existing = this.getEntry(sourceUri);
+    const sourceViewColumn = panel.viewColumn ?? existing?.sourceViewColumn ?? vscode.ViewColumn.Active;
+    const entry = this.createEntry(
+      sourceUri,
+      sourceViewColumn,
+      'inline',
+      sourceViewColumn,
+      panel,
+      'custom',
+    );
+    entry.ready = false;
+    entry.replaceAfterReady = existing;
+    entry.initialFragment = initialFragment;
+    this.activeSourceUri = sourceUri;
+  }
+
   public async update(editor: vscode.TextEditor | undefined): Promise<void> {
     if (editor?.document.languageId === 'markdown') {
       const entry = this.getEntry(editor.document.uri);
@@ -100,6 +157,34 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   public async updateAll(): Promise<void> {
     await Promise.all(Array.from(this.previews.values()).map((entry) => this.updateEntry(entry)));
+  }
+
+  public async deserializeWebviewPanel(panel: vscode.WebviewPanel, state: unknown): Promise<void> {
+    const savedState = isSerializedPreviewState(state) ? state : undefined;
+    if (!savedState) {
+      panel.dispose();
+      return;
+    }
+
+    try {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(savedState.sourceUri));
+      const sourceColumn = savedState.sourceColumn as vscode.ViewColumn | undefined;
+      const entry = this.createEntry(
+        document.uri,
+        panel.viewColumn ?? resolveBesideColumn(sourceColumn),
+        'beside',
+        sourceColumn,
+        panel,
+        'dynamic',
+      );
+      this.activeSourceUri = document.uri;
+      await this.updateEntry(entry, document);
+      if (typeof savedState.scrollLine === 'number') {
+        await panel.webview.postMessage({ type: 'scrollToLine', value: savedState.scrollLine });
+      }
+    } catch {
+      panel.dispose();
+    }
   }
 
   public postVisibleLineRange(document: vscode.TextDocument, line: number): void {
@@ -175,6 +260,11 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const previewMode = resolvePreviewMode(config.previewMode, options.modeOverride);
     const sourceViewColumn = this.resolveSourceViewColumn(document.uri, options.sourceViewColumn);
     const targetColumn = this.resolvePreviewColumn(document.uri, previewMode, sourceViewColumn);
+    const existing = this.getEntry(document.uri);
+    if (previewMode === 'beside' && existing?.surface === 'custom') {
+      await this.openSidePreviewFromCustom(document, existing, sourceViewColumn);
+      return;
+    }
     const entry = this.getOrCreateEntry(document.uri, targetColumn, previewMode, sourceViewColumn);
     this.activeSourceUri = document.uri;
     entry.previewMode = previewMode;
@@ -189,6 +279,40 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     if (fragment) {
       await entry.panel.webview.postMessage({ type: 'scrollToAnchor', value: decodeFragment(fragment) });
     }
+  }
+
+  private async openSidePreviewFromCustom(
+    document: vscode.TextDocument,
+    existing: PreviewEntry,
+    sourceViewColumn?: vscode.ViewColumn,
+  ): Promise<void> {
+    const resolvedSourceColumn = sourceViewColumn ?? existing.sourceViewColumn ?? vscode.ViewColumn.One;
+    await vscode.window.showTextDocument(document, {
+      viewColumn: resolvedSourceColumn,
+      preserveFocus: true,
+      preview: false,
+    });
+
+    const targetColumn = resolveBesideColumn(resolvedSourceColumn);
+    const entry = this.createEntry(
+      document.uri,
+      targetColumn,
+      'beside',
+      resolvedSourceColumn,
+      undefined,
+      'dynamic',
+    );
+    this.activeSourceUri = document.uri;
+    entry.panel.reveal(targetColumn, true);
+    try {
+      await this.updateEntry(entry, document);
+    } catch (error) {
+      this.previews.set(getPreviewKey(document.uri), existing);
+      this.activeSourceUri = document.uri;
+      entry.panel.dispose();
+      throw error;
+    }
+    existing.panel.dispose();
   }
 
   private getOrCreateEntry(
@@ -225,7 +349,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     sourceViewColumn?: vscode.ViewColumn,
   ): vscode.ViewColumn {
     if (previewMode === 'beside') {
-      return vscode.ViewColumn.Beside;
+      return resolveBesideColumn(sourceViewColumn);
     }
 
     return this.resolveSourceViewColumn(sourceUri, sourceViewColumn)
@@ -238,8 +362,10 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     targetColumn: vscode.ViewColumn,
     previewMode: PreviewMode,
     sourceViewColumn?: vscode.ViewColumn,
+    existingPanel?: vscode.WebviewPanel,
+    surface: 'dynamic' | 'custom' = 'dynamic',
   ): PreviewEntry {
-    const panel = vscode.window.createWebviewPanel(
+    const panel = existingPanel ?? vscode.window.createWebviewPanel(
       'markdown-lint.preview',
       sourceUri.fsPath.split(/[\\/]/).pop() ?? 'Markdown Preview Lite',
       targetColumn,
@@ -260,6 +386,9 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       previewMode,
       sourceViewColumn,
       scrollSyncSuppressor: new ScrollSyncSuppressor(),
+      updateGeneration: 0,
+      surface,
+      ready: surface === 'dynamic',
     };
 
     panel.iconPath = {
@@ -272,10 +401,12 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     panel.onDidDispose(() => {
       clearPreviewScrollSyncTimer(entry);
       entry.scrollSyncSuppressor.dispose();
-      this.diagnosticCollection.delete(entry.sourceUri);
-      this.previews.delete(getPreviewKey(entry.sourceUri));
-      if (this.activeSourceUri?.toString() === entry.sourceUri.toString()) {
-        this.activeSourceUri = this.previews.values().next().value?.sourceUri;
+      if (this.getEntry(entry.sourceUri) === entry) {
+        this.diagnosticCollection.delete(entry.sourceUri);
+        this.previews.delete(getPreviewKey(entry.sourceUri));
+        if (this.activeSourceUri?.toString() === entry.sourceUri.toString()) {
+          this.activeSourceUri = this.previews.values().next().value?.sourceUri;
+        }
       }
     }, null, this.disposables);
 
@@ -290,19 +421,36 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
       this.notifyResizeEntry(entry);
     }, null, this.disposables);
 
+    panel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.context.extensionUri, 'media'),
+        vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'katex', 'dist'),
+        vscode.Uri.joinPath(this.context.extensionUri, 'node_modules', 'mermaid', 'dist'),
+      ],
+    };
     panel.webview.html = this.getHtml(panel.webview);
 
     return entry;
   }
 
   private async updateEntry(entry: PreviewEntry, document?: vscode.TextDocument): Promise<void> {
+    if (!entry.ready) {
+      return;
+    }
+
+    const generation = ++entry.updateGeneration;
     const resolvedDocument = document ?? await vscode.workspace.openTextDocument(entry.sourceUri);
     if (!isPreviewableMarkdown(resolvedDocument)) {
       return;
     }
 
     entry.sourceUri = resolvedDocument.uri;
-    const markdown = resolvedDocument.getText();
+    const isDirty = resolvedDocument.isDirty;
+    const diskText = await readDiskMarkdown(isDirty, () =>
+      vscode.workspace.fs.readFile(resolvedDocument.uri),
+    );
+    const markdown = chooseMarkdownSource(isDirty, resolvedDocument.getText(), diskText);
     const toc = extractToc(markdown);
     const baseUri = vscode.Uri.joinPath(resolvedDocument.uri, '..');
     const localResourceRoots = [
@@ -330,15 +478,20 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const config = getWorkbenchConfig();
     const checks = await runPreviewChecks(markdown, resolvedDocument.uri);
 
+    if (generation !== entry.updateGeneration) {
+      return;
+    }
+
     this.updateDiagnostics(resolvedDocument, checks);
 
     const state: PreviewState = {
+      sourceUri: resolvedDocument.uri.toString(),
+      sourceColumn: entry.sourceViewColumn,
       title: resolvedDocument.fileName.split(/[\\/]/).pop() ?? 'Untitled.md',
       html: rendered.html,
-      rawText: markdown,
       toc,
       themeMode: config.themeMode,
-      previewMode: config.previewMode,
+      previewMode: entry.previewMode,
       previewStyle: config.previewStyle,
       tocVisible: config.showToc,
       baseUrl: entry.panel.webview.asWebviewUri(baseUri).toString() + '/',
@@ -387,12 +540,39 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
 
   private async handleMessage(entry: PreviewEntry, message: WebviewMessage): Promise<void> {
     switch (message.type) {
+      case 'webviewReady': {
+        entry.ready = true;
+        try {
+          await this.updateEntry(entry);
+          if (entry.initialFragment) {
+            await entry.panel.webview.postMessage({ type: 'scrollToAnchor', value: entry.initialFragment });
+          }
+        } catch (error) {
+          console.error('[markdown-lint] preview initial render failed:', error);
+          const replacement = entry.replaceAfterReady;
+          if (replacement) {
+            this.previews.set(getPreviewKey(entry.sourceUri), replacement);
+            this.activeSourceUri = entry.sourceUri;
+            entry.panel.dispose();
+          }
+          return;
+        }
+
+        const replacement = entry.replaceAfterReady;
+        entry.replaceAfterReady = undefined;
+        entry.initialFragment = undefined;
+        if (replacement && this.getEntry(entry.sourceUri) === entry) {
+          replacement.panel.dispose();
+        }
+        return;
+      }
       case 'setThemeMode':
         await updateThemeMode(message.value);
         await this.updateAll();
         return;
       case 'setPreviewMode':
         await updatePreviewMode(message.value);
+        entry.previewMode = message.value;
         await this.updateAll();
         return;
       case 'setPreviewStyle':
@@ -400,14 +580,20 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         await this.updateAll();
         return;
       case 'revealLine': {
-        const editor = vscode.window.visibleTextEditors.find(
+        let editor = vscode.window.visibleTextEditors.find(
           (e) => e.document.uri.toString() === entry.sourceUri.toString(),
         );
         if (!editor) {
-          return;
+          const document = await vscode.workspace.openTextDocument(entry.sourceUri);
+          editor = await vscode.window.showTextDocument(document, {
+            viewColumn: entry.sourceViewColumn ?? entry.panel.viewColumn,
+            preview: false,
+            preserveFocus: false,
+          });
         }
         entry.scrollSyncSuppressor.suppress('preview', 450);
-        const position = new vscode.Position(message.value, 0);
+        const line = clampEditorLine(message.value, editor.document.lineCount);
+        const position = new vscode.Position(line, 0);
         editor.selection = new vscode.Selection(position, position);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
         return;
@@ -419,7 +605,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         if (!editor) {
           return;
         }
-        const line = Math.min(message.value, editor.document.lineCount - 1);
+        const line = clampEditorLine(message.value, editor.document.lineCount);
         const position = new vscode.Position(line, 0);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.Default);
         return;
@@ -432,7 +618,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           return;
         }
         entry.scrollSyncSuppressor.suppress('preview', 350);
-        const line = Math.min(message.value, editor.document.lineCount - 1);
+        const line = clampEditorLine(message.value, editor.document.lineCount);
         const position = new vscode.Position(line, 0);
         editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenter);
         return;
@@ -446,7 +632,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
         await this.updateEntry(entry);
         return;
       case 'exportHtml':
-        await exportHtml(entry.sourceUri, this.context);
+        await exportHtml(await vscode.workspace.openTextDocument(entry.sourceUri), this.context);
         return;
       case 'openLink':
         await this.openLink(entry, message.value);
@@ -479,6 +665,16 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     try {
       const doc = await vscode.workspace.openTextDocument(targetUri);
       if (isPreviewableMarkdown(doc)) {
+        if (entry.surface === 'custom') {
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            targetUri.with({ fragment: target.fragment }),
+            PREVIEW_EDITOR_VIEW_TYPE,
+            entry.panel.viewColumn ?? entry.sourceViewColumn ?? vscode.ViewColumn.Active,
+          );
+          return;
+        }
+
         await this.openOrRevealPreview(doc.uri, target.fragment, doc, {
           modeOverride: entry.previewMode,
           sourceViewColumn: entry.sourceViewColumn ?? entry.panel.viewColumn,
@@ -518,6 +714,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     const mermaidInteractionUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidInteraction.js'));
     const mermaidRuntimeUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'mermaidRuntime.js'));
     const scrollSyncRuntimeUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'scrollSyncRuntime.js'));
+    const tableEnhancementUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'tableEnhancement.js'));
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.js'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.css'));
     const katexStyleUri = webview.asWebviewUri(
@@ -609,7 +806,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
           <span class="floating-menu-group-copy">
             <span class="floating-menu-group-label">Placement</span>
           </span>
-          <span class="floating-menu-group-value" id="placement-value">Beside</span>
+           <span class="floating-menu-group-value" id="placement-value">Inline</span>
           <span class="floating-menu-group-arrow">&#9656;</span>
         </button>
         <div class="floating-menu-sub" id="placement-options">
@@ -641,6 +838,7 @@ export class MarkdownWorkbenchPanel implements vscode.Disposable {
     <script nonce="${nonce}" src="${mermaidInteractionUri}"></script>
     <script nonce="${nonce}" src="${mermaidRuntimeUri}"></script>
     <script nonce="${nonce}" src="${scrollSyncRuntimeUri}"></script>
+    <script nonce="${nonce}" src="${tableEnhancementUri}"></script>
     <script nonce="${nonce}" src="${scriptUri}"></script>
   </body>
 </html>`;
@@ -651,6 +849,7 @@ type WebviewMessage =
   | { type: 'setThemeMode'; value: ThemeMode }
   | { type: 'setPreviewMode'; value: PreviewMode }
   | { type: 'setPreviewStyle'; value: PreviewStyle }
+  | { type: 'webviewReady' }
   | { type: 'revealLine'; value: number }
   | { type: 'formatDocument' }
   | { type: 'scrollToLine'; value: number }
@@ -676,5 +875,37 @@ function isPreviewableMarkdown(document: vscode.TextDocument): boolean {
 }
 
 function getNonce(): string {
+  // 优先使用 crypto.randomUUID（Node.js 14+）
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+  // 回退方案
   return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+}
+
+function resolveBesideColumn(sourceColumn?: vscode.ViewColumn): vscode.ViewColumn {
+  if (typeof sourceColumn === 'number' && sourceColumn > 0 && sourceColumn < 9) {
+    return sourceColumn + 1 as vscode.ViewColumn;
+  }
+
+  return vscode.ViewColumn.Beside;
+}
+
+function clampEditorLine(line: number, lineCount: number): number {
+  return Math.max(0, Math.min(line, Math.max(0, lineCount - 1)));
+}
+
+function isSerializedPreviewState(value: unknown): value is {
+  sourceUri: string;
+  sourceColumn?: number;
+  scrollLine?: number;
+} {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const state = value as { sourceUri?: unknown; sourceColumn?: unknown; scrollLine?: unknown };
+  return typeof state.sourceUri === 'string'
+    && (state.sourceColumn === undefined || typeof state.sourceColumn === 'number')
+    && (state.scrollLine === undefined || typeof state.scrollLine === 'number');
 }

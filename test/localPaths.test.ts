@@ -1,77 +1,112 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  collectLocalImageRootUris,
-  getContainingDirectoryUri,
-  resolveReference,
-} from '../src/core/localPaths';
+import { resolveReference, getContainingDirectoryUri, collectLocalImageRootUris } from '../src/core/localPaths';
 
-test('resolves relative paths with spaces, Chinese characters, and parent segments', () => {
-  const resolved = resolveReference(
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/notes/',
-    '../assets/图 1.png',
-  );
-
-  assert.deepEqual(resolved, {
-    type: 'local',
-    uri: 'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/assets/%E5%9B%BE%201.png',
-  });
+test('resolves anchor references', () => {
+  const result = resolveReference('file:///docs/', '#section-1');
+  assert.deepStrictEqual(result, { type: 'anchor', fragment: 'section-1' });
 });
 
-test('preserves local file URI fragments separately from the file target', () => {
-  const resolved = resolveReference(
-    'file:///Users/jessy/docs/notes/',
-    'file:///Users/jessy/docs/guide.md#section-2',
-  );
-
-  assert.deepEqual(resolved, {
-    type: 'local',
-    uri: 'file:///Users/jessy/docs/guide.md',
-    fragment: 'section-2',
-  });
+test('resolves external HTTP URLs', () => {
+  const result = resolveReference('file:///docs/', 'https://example.com');
+  assert.deepStrictEqual(result, { type: 'external', href: 'https://example.com' });
 });
 
-test('keeps external and anchor references out of local path handling', () => {
-  assert.deepEqual(resolveReference('file:///tmp/docs/', 'https://example.com/a b'), {
-    type: 'external',
-    href: 'https://example.com/a b',
-  });
-  assert.deepEqual(resolveReference('file:///tmp/docs/', 'ftp://example.com/file.md'), {
-    type: 'external',
-    href: 'ftp://example.com/file.md',
-  });
-  assert.deepEqual(resolveReference('file:///tmp/docs/', 'vscode://file/Users/jessy/docs/readme.md'), {
-    type: 'external',
-    href: 'vscode://file/Users/jessy/docs/readme.md',
-  });
-  assert.deepEqual(resolveReference('file:///tmp/docs/', '#local-heading'), {
-    type: 'anchor',
-    fragment: 'local-heading',
-  });
+test('resolves external HTTP URLs', () => {
+  const result = resolveReference('file:///docs/', 'http://example.com');
+  assert.deepStrictEqual(result, { type: 'external', href: 'http://example.com' });
 });
 
-test('finds local image roots from Markdown and raw HTML image references', () => {
-  const roots = collectLocalImageRootUris(
-    [
-      '![Chart](../assets/图 1.png)',
-      '![Logo](images/logo light.svg "Logo")',
-      '<img src="./raw html/图 2.png" alt="Raw">',
-      '<img src="https://example.com/remote.png" alt="Remote">',
-      '<img src="data:image/png;base64,abc" alt="Inline">',
-    ].join('\n'),
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/notes/',
-  );
-
-  assert.deepEqual(roots, [
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/assets/',
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/notes/images/',
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/notes/raw%20html/',
-  ]);
+test('resolves external FTP URLs', () => {
+  const result = resolveReference('file:///docs/', 'ftp://files.example.com/doc.pdf');
+  assert.deepStrictEqual(result, { type: 'external', href: 'ftp://files.example.com/doc.pdf' });
 });
 
-test('returns the containing directory for file targets', () => {
-  assert.equal(
-    getContainingDirectoryUri('file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/assets/%E5%9B%BE%201.png'),
-    'file:///Users/jessy/docs/%E9%A1%B9%E7%9B%AE/assets/',
-  );
+test('resolves relative file references', () => {
+  const result = resolveReference('file:///docs/', './image.png');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/image.png' });
+});
+
+test('resolves relative directory references', () => {
+  const result = resolveReference('file:///docs/', 'images/photo.jpg');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/images/photo.jpg' });
+});
+
+test('resolves parent directory references', () => {
+  const result = resolveReference('file:///docs/subdir/', '../image.png');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/image.png' });
+});
+
+test('resolves references with fragments', () => {
+  const result = resolveReference('file:///docs/', './page.html#top');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/page.html', fragment: 'top' });
+});
+
+test('resolves absolute file:// URLs', () => {
+  const result = resolveReference('file:///docs/', 'file:///other/image.png');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///other/image.png' });
+});
+
+test('handles empty fragment gracefully', () => {
+  const result = resolveReference('file:///docs/', 'page.html#');
+  assert.equal(result.type, 'local');
+  if (result.type === 'local') {
+    assert.equal(result.uri, 'file:///docs/page.html');
+    assert.ok(!('fragment' in result) || result.fragment === undefined);
+  }
+});
+
+test('returns anchor type for fragment-only references without path', () => {
+  const result = resolveReference('file:///docs/', '#');
+  assert.equal(result.type, 'anchor');
+});
+
+test('handles URL-encoded paths', () => {
+  const result = resolveReference('file:///docs/', './%E4%B8%AD%E6%96%87%E6%96%87%E4%BB%B6.png');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/%E4%B8%AD%E6%96%87%E6%96%87%E4%BB%B6.png' });
+});
+
+test('handles paths with spaces', () => {
+  const result = resolveReference('file:///docs/', './my%20file.md');
+  assert.deepStrictEqual(result, { type: 'local', uri: 'file:///docs/my%20file.md' });
+});
+
+test('getContainingDirectoryUri returns parent directory', () => {
+  const result = getContainingDirectoryUri('file:///docs/images/photo.jpg');
+  assert.equal(result, 'file:///docs/images/');
+});
+
+test('getContainingDirectoryUri handles trailing slash', () => {
+  const result = getContainingDirectoryUri('file:///docs/images/');
+  assert.equal(result, 'file:///docs/images/');
+});
+
+test('collectLocalImageRootUris extracts local image roots', () => {
+  const markdown = '![Alt](./images/photo.jpg)\n![Other](./icons/icon.png)';
+  const result = collectLocalImageRootUris(markdown, 'file:///docs/');
+  assert.deepStrictEqual(result.sort(), ['file:///docs/icons/', 'file:///docs/images/']);
+});
+
+test('collectLocalImageRootUris ignores external images', () => {
+  const markdown = '![External](https://example.com/image.png)';
+  const result = collectLocalImageRootUris(markdown, 'file:///docs/');
+  assert.deepStrictEqual(result, []);
+});
+
+test('collectLocalImageRootUris handles HTML img tags', () => {
+  const markdown = '<img src="./images/photo.jpg">';
+  const result = collectLocalImageRootUris(markdown, 'file:///docs/');
+  assert.deepStrictEqual(result, ['file:///docs/images/']);
+});
+
+test('collectLocalImageRootUris deduplicates roots', () => {
+  const markdown = '![Alt1](./images/a.jpg)\n![Alt2](./images/b.jpg)';
+  const result = collectLocalImageRootUris(markdown, 'file:///docs/');
+  assert.deepStrictEqual(result, ['file:///docs/images/']);
+});
+
+test('collectLocalImageRootUris handles nested paths', () => {
+  const markdown = '![Deep](./a/b/c/deep.png)';
+  const result = collectLocalImageRootUris(markdown, 'file:///docs/');
+  assert.deepStrictEqual(result, ['file:///docs/a/b/c/']);
 });

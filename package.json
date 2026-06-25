@@ -2,7 +2,7 @@
   "name": "markdown-lint",
   "displayName": "Markdown Preview Lite",
   "description": "Lightweight Markdown preview with multiple themes, table of contents, math formulas, code highlighting, and HTML export.",
-  "version": "0.6.0-beta.1",
+  "version": "0.6.0",
   "publisher": "hyshine",
   "license": "MIT",
   "author": "jessy",
@@ -31,7 +31,9 @@
   "icon": "images/icon.png",
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onCustomEditor:markdown-lint.preview.editor",
+    "onWebviewPanel:markdown-lint.preview"
   ],
   "contributes": {
     "commands": [
@@ -62,6 +64,24 @@
       {
         "command": "markdown-lint.exportHtml",
         "title": "Markdown Preview Lite: Export HTML"
+      },
+      {
+        "command": "markdown-lint.reopenAsSource",
+        "title": "Markdown Preview Lite: Reopen as Markdown Source"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "markdown-lint.preview.editor",
+        "displayName": "Markdown Preview Lite",
+        "priority": {
+          "textEditor": "option"
+        },
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          }
+        ]
       }
     ],
     "menus": {
@@ -119,7 +139,7 @@
             "Open the preview beside the Markdown editor.",
             "Open the preview in the current editor group."
           ],
-          "default": "beside",
+          "default": "inline",
           "description": "Default Markdown preview placement. Use 'beside' for split preview or 'inline' for preview in the current editor group."
         },
         "markdown-lint.showToc": {
@@ -133,7 +153,8 @@
   "scripts": {
     "compile": "esbuild src/extension.ts --bundle --platform=node --outfile=dist/extension.js --external:vscode --external:prettier --format=cjs --sourcemap",
     "watch": "npm run compile -- --watch",
-    "test": "node --test --import tsx test/*.test.ts"
+    "test": "node --test --import tsx test/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

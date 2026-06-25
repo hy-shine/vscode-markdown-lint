@@ -140,6 +140,7 @@
     const environment = options.environment || root;
     const createEventListenerScope = options.createEventListenerScope;
     const setupInteraction = options.setupInteraction || (() => {});
+    let closeCurrentOverlay = null;
 
     function createListenerScope() {
       if (typeof createEventListenerScope === 'function') {
@@ -161,7 +162,12 @@
       function closeOverlay() {
         listenerScope.abort();
         overlay.remove();
+        if (closeCurrentOverlay === closeOverlay) {
+          closeCurrentOverlay = null;
+        }
       }
+
+      closeCurrentOverlay = closeOverlay;
 
       const clone = container.cloneNode(true);
       clone.classList.add('mermaid-fullscreen-content');
@@ -187,6 +193,7 @@
     }
 
     return {
+      close: () => closeCurrentOverlay?.(),
       open,
     };
   }

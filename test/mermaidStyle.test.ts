@@ -72,3 +72,17 @@ test('keeps Notion dark and Obsidian notes close to their references', () => {
   );
   assert.doesNotMatch(obsidianQuote, /font-style: italic;/);
 });
+
+test('defines preview polish surfaces for tables and image tools', () => {
+  assert.match(css, /\.table-scroll\s*\{/);
+  assert.match(css, /\.table-scroll\.is-overflowing::after\s*\{/);
+  assert.match(css, /\.preview-content table\.table-enhanced\s*\{/);
+  assert.match(css, /\.preview-content \.is-numeric\s*\{/);
+  assert.match(css, /\.image-lightbox-toolbar\s*\{/);
+  assert.match(css, /\.image-lightbox-tool\s*\{/);
+});
+
+test('reduces preview polish motion for reduced motion users', () => {
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /transition-duration: 0\.001ms !important;/);
+});

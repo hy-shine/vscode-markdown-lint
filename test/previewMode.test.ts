@@ -8,7 +8,7 @@ test('normalizes valid preview modes', () => {
 });
 
 test('falls back to the default preview mode for invalid values', () => {
-  assert.equal(DEFAULT_PREVIEW_MODE, 'beside');
+  assert.equal(DEFAULT_PREVIEW_MODE, 'inline');
   assert.equal(normalizePreviewMode(undefined), DEFAULT_PREVIEW_MODE);
   assert.equal(normalizePreviewMode('unknown'), DEFAULT_PREVIEW_MODE);
 });

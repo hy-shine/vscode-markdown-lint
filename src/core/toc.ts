@@ -59,17 +59,22 @@ function normalizeHeadingText(value: string): string {
     .trim();
 }
 
-export function getFrontMatterLineCount(markdown: string): number {
+export interface FrontMatterResult {
+  bodyStart: number;
+  lineCount: number;
+}
+
+export function parseFrontMatter(markdown: string): FrontMatterResult {
   const normalized = markdown.charCodeAt(0) === 0xfeff ? markdown.slice(1) : markdown;
   const match = normalized.match(/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n?/);
   if (!match) {
-    return 0;
+    return { bodyStart: 0, lineCount: 0 };
   }
 
   const body = match[1];
   const bodyLines = body.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (bodyLines.length === 0) {
-    return 0;
+    return { bodyStart: 0, lineCount: 0 };
   }
 
   const isYamlLike = bodyLines.every((line) => {
@@ -81,8 +86,16 @@ export function getFrontMatterLineCount(markdown: string): number {
   });
 
   if (!isYamlLike) {
-    return 0;
+    return { bodyStart: 0, lineCount: 0 };
   }
 
-  return match[0].replace(/\r?\n$/, '').split(/\r?\n/).length;
+  const cleanEnd = match[0].replace(/\r?\n$/, '');
+  return {
+    bodyStart: cleanEnd.length,
+    lineCount: cleanEnd.split(/\r?\n/).length,
+  };
+}
+
+export function getFrontMatterLineCount(markdown: string): number {
+  return parseFrontMatter(markdown).lineCount;
 }

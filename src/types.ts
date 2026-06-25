@@ -28,9 +28,10 @@ export interface PreviewCheck {
 }
 
 export interface PreviewState {
+  sourceUri: string;
+  sourceColumn?: number;
   title: string;
   html: string;
-  rawText: string;
   toc: TocItem[];
   themeMode: ThemeMode;
   previewMode: PreviewMode;

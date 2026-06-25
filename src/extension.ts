@@ -1,25 +1,73 @@
 import * as vscode from 'vscode';
+import { EDITOR_UPDATE_DEBOUNCE_MS } from './core/constants';
 import { exportHtml } from './core/export';
+import { getWorkbenchConfig } from './core/config';
 import { MarkdownFormattingProvider } from './formatting/MarkdownFormattingProvider';
+import { MarkdownPreviewEditorProvider } from './preview/MarkdownPreviewEditorProvider';
 import { MarkdownWorkbenchPanel } from './preview/MarkdownWorkbenchPanel';
+import { PREVIEW_EDITOR_VIEW_TYPE } from './preview/constants';
 import { PreviewMode } from './types';
 
 export function activate(context: vscode.ExtensionContext): void {
   try {
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('markdown-preview-lite');
     const panel = new MarkdownWorkbenchPanel(context, diagnosticCollection);
+    const previewEditorProvider = new MarkdownPreviewEditorProvider(panel);
     const formattingProvider = new MarkdownFormattingProvider();
     const updateDebounces = new Map<string, NodeJS.Timeout>();
+    const revealDirectPreview = async (): Promise<void> => {
+      const editor = vscode.window.activeTextEditor;
+      if (editor?.document.languageId === 'markdown') {
+        await vscode.commands.executeCommand('reopenActiveEditorWith', PREVIEW_EDITOR_VIEW_TYPE);
+        return;
+      }
+
+      const sourceUri = panel.getActiveSourceUri();
+      if (!sourceUri) {
+        void vscode.window.showInformationMessage('Open a Markdown file to use Markdown Preview Lite.');
+        return;
+      }
+
+      const sourceColumn = editor?.document.uri.toString() === sourceUri.toString()
+        ? editor.viewColumn
+        : panel.getSourceViewColumn(sourceUri);
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        sourceUri,
+        PREVIEW_EDITOR_VIEW_TYPE,
+        sourceColumn ?? vscode.ViewColumn.Active,
+      );
+    };
+
     const revealPreview = async (modeOverride?: PreviewMode): Promise<void> => {
+      if (modeOverride === 'inline' || (!modeOverride && getWorkbenchConfig().previewMode === 'inline')) {
+        await revealDirectPreview();
+        return;
+      }
+
       const didReveal = await panel.revealActive(modeOverride);
       if (!didReveal) {
         void vscode.window.showInformationMessage('Open a Markdown file to use Markdown Preview Lite.');
       }
     };
 
+    const cleanupDebounces = () => {
+      for (const timer of updateDebounces.values()) {
+        clearTimeout(timer);
+      }
+      updateDebounces.clear();
+    };
+
     context.subscriptions.push(
+      { dispose: cleanupDebounces },
       diagnosticCollection,
       panel,
+      vscode.window.registerCustomEditorProvider(
+        PREVIEW_EDITOR_VIEW_TYPE,
+        previewEditorProvider,
+        { webviewOptions: { retainContextWhenHidden: true } },
+      ),
+      vscode.window.registerWebviewPanelSerializer('markdown-lint.preview', panel),
       vscode.languages.registerDocumentFormattingEditProvider({ language: 'markdown' }, formattingProvider),
       vscode.commands.registerCommand('markdown-lint.openPreview', async () => {
         await revealPreview();
@@ -38,11 +86,24 @@ export function activate(context: vscode.ExtensionContext): void {
       }),
       vscode.commands.registerCommand('markdown-lint.exportHtml', async () => {
         const editor = vscode.window.activeTextEditor;
-        if (!editor || editor.document.languageId !== 'markdown') {
+        if (editor?.document.languageId === 'markdown') {
+          await exportHtml(editor.document, context);
+          return;
+        }
+
+        const sourceUri = panel.getActiveSourceUri();
+        if (!sourceUri) {
           void vscode.window.showInformationMessage('Open a Markdown file to export.');
           return;
         }
-        await exportHtml(editor.document.uri, context);
+
+        await exportHtml(await vscode.workspace.openTextDocument(sourceUri), context);
+      }),
+      vscode.commands.registerCommand('markdown-lint.reopenAsSource', async () => {
+        const didReveal = await panel.showSourceForActivePreview();
+        if (!didReveal) {
+          void vscode.window.showInformationMessage('Open a Markdown preview first.');
+        }
       }),
       vscode.window.onDidChangeActiveTextEditor(async (editor: vscode.TextEditor | undefined) => {
         await panel.update(editor);
@@ -60,7 +121,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const timer = setTimeout(() => {
           updateDebounces.delete(key);
           void panel.updateDocument(event.document);
-        }, 300);
+        }, EDITOR_UPDATE_DEBOUNCE_MS);
         updateDebounces.set(key, timer);
       }),
       vscode.workspace.onDidChangeConfiguration(async (event: vscode.ConfigurationChangeEvent) => {

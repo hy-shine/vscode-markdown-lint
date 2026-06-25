@@ -22,7 +22,7 @@ const HEADING_SELECTOR = 'h1, h2, h3, h4, h5, h6';
 
 let currentState = {
   themeMode: 'system',
-  previewMode: 'beside',
+  previewMode: 'inline',
   previewStyle: 'default',
   tocVisible: true,
 };
@@ -41,6 +41,7 @@ const mermaidInteraction = window.MDLINT_MERMAID_INTERACTION.createMermaidIntera
 const mermaidRenderSession = mermaidRuntime.createMermaidRenderSession();
 const codeBlockControls = window.MDLINT_CODE_BLOCK_CONTROLS.createCodeBlockControls();
 const imageLightbox = window.MDLINT_IMAGE_LIGHTBOX.createImageLightbox();
+const tableEnhancement = window.MDLINT_TABLE_ENHANCEMENT.createTableEnhancement();
 let headingCache = [];
 let lastSyncedSourceLine = null;
 let activeHeadingTracker = window.MDLINT_ACTIVE_HEADING?.createActiveHeadingObserver?.({
@@ -235,6 +236,7 @@ previewContent.addEventListener('click', (e) => {
 });
 
 window.addEventListener('message', handleWebviewMessage);
+vscode.postMessage({ type: 'webviewReady' });
 
 function handleWebviewMessage(event) {
   const message = event.data;
@@ -277,6 +279,11 @@ function handleRenderMessage(state) {
   scrollSync.block('render', 120);
   scrollSync.clearDebounce();
   applyRenderState(state);
+  vscode.setState({
+    sourceUri: state.sourceUri,
+    sourceColumn: state.sourceColumn,
+    scrollLine: lastSyncedSourceLine ?? undefined,
+  });
   resetRenderedContent(state.html);
   initializeRenderedContent(state, mermaidRenderToken);
 }
@@ -305,6 +312,8 @@ function ensureBaseElement() {
 function resetRenderedContent(html) {
   // Cleanup orphaned Mermaid error containers that are attached directly to the document body
   document.querySelectorAll('[id^="dmermaid-"]').forEach(el => el.remove());
+  imageLightbox.close();
+  mermaidFullscreen.close();
   headingCache = [];
   lastSyncedSourceLine = null;
   previewContent.innerHTML = html;
@@ -317,6 +326,7 @@ function initializeRenderedContent(state, mermaidRenderToken) {
   renderMermaidDiagrams(mermaidRenderToken);
   codeBlockControls.setup(previewContent);
   imageLightbox.setup(previewContent);
+  tableEnhancement.setup(previewContent);
   updateActiveTocLink();
 }
 

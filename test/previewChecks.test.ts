@@ -194,6 +194,12 @@ test('flags local link references as broken-link candidates', () => {
   assert.equal(checks[0].line, 0);
 });
 
+test('does not classify image references as broken links', () => {
+  const md = '![photo](./missing.png)';
+  const checks = findBrokenLinks(md, fenced(md), 'file:///tmp/docs/');
+  assert.equal(checks.length, 0);
+});
+
 test('ignores external link URLs', () => {
   const md = '[example](https://example.com)'.split('\n');
   const checks = findBrokenLinks(md.join('\n'), fenced(md.join('\n')), 'file:///tmp/docs/');

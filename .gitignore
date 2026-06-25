@@ -17,3 +17,12 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Craft Agent
+.claude/
+.claude-plugin/
+/config.json
+/events.jsonl
+/labels/
+/statuses/
+/views.json

@@ -14,9 +14,11 @@ export function stripPreviewOnlyCodeControlsForExport(html: string): string {
 }
 
 export function htmlContainsClass(html: string, className: string): boolean {
-  const classAttributePattern = /(?:^|[\s<])class\s*=\s*(["'])(.*?)\1/g;
+  // 匹配 class="...", class='...', 和 class=word (无引号)
+  const classAttributePattern = /(?:^|[\s<])class\s*=\s*("(.*?)")|(?:^|[\s<])class\s*=\s*('(.+?)')|(?:^|[\s<])class\s*=\s*([^\s>"']+)/gi;
   for (const match of html.matchAll(classAttributePattern)) {
-    if (match[2].split(/\s+/).includes(className)) {
+    const classValue = match[2] ?? match[4] ?? match[5] ?? '';
+    if (classValue.split(/\s+/).includes(className)) {
       return true;
     }
   }

@@ -1,5 +1,6 @@
-export const KATEX_CDN_VERSION = '0.16.45';
-export const MERMAID_CDN_VERSION = '11.15.0';
+import { KATEX_CDN_VERSION, MERMAID_CDN_VERSION } from './constants';
+
+export { KATEX_CDN_VERSION, MERMAID_CDN_VERSION };
 
 export function buildKatexStylesheetTag(): string {
   return `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@${KATEX_CDN_VERSION}/dist/katex.min.css">`;

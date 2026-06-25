@@ -21,6 +21,7 @@ function createClassList() {
 function createElement(tagName: string) {
   const attrs = new Map<string, string>();
   const handlers = new Map<string, Array<(event: any) => void>>();
+  const capturedPointers = new Set<number>();
   const element: any = {
     tagName: tagName.toUpperCase(),
     children: [] as any[],
@@ -30,6 +31,7 @@ function createElement(tagName: string) {
     tabIndex: -1,
     textContent: '',
     focused: false,
+    style: {} as Record<string, string>,
     appendChild(child: any) {
       child.parentElement = element;
       element.children.push(child);
@@ -55,6 +57,15 @@ function createElement(tagName: string) {
     },
     focus() {
       element.focused = true;
+    },
+    setPointerCapture(pointerId: number) {
+      capturedPointers.add(pointerId);
+    },
+    hasPointerCapture(pointerId: number) {
+      return capturedPointers.has(pointerId);
+    },
+    releasePointerCapture(pointerId: number) {
+      capturedPointers.delete(pointerId);
     },
     closest(selector: string) {
       let current: any = element;
@@ -173,4 +184,47 @@ test('opens image lightbox from preview image and restores focus on close', () =
   assert.equal(lightboxImage.src, undefined);
   assert.equal(caption.hidden, true);
   assert.equal(image.focused, true);
+});
+
+test('zooms, pans, and resets the open image without changing preview content', () => {
+  const document = createDocument();
+  const controls = createImageLightbox({ document });
+  const image = createElement('img');
+  image.src = 'file:///tmp/diagram.png';
+  image.currentSrc = 'webview://diagram.png';
+  image.alt = 'Architecture diagram';
+  const previewContent = {
+    querySelectorAll(selector: string) {
+      return selector === 'img' ? [image] : [];
+    },
+  };
+
+  controls.setup(previewContent);
+  image.click();
+
+  const lightbox = document.getElementById('image-lightbox');
+  const lightboxImage = lightbox.querySelector('.image-lightbox-image');
+  const zoomIn = lightbox.querySelector('.image-lightbox-zoom-in');
+  const reset = lightbox.querySelector('.image-lightbox-reset');
+
+  assert.equal(zoomIn.getAttribute('aria-label'), 'Zoom image in');
+  assert.equal(reset.getAttribute('aria-label'), 'Reset image view');
+
+  zoomIn.click();
+  assert.equal(lightboxImage.style.transform, 'translate(0px, 0px) scale(1.15)');
+
+  lightboxImage.dispatch('pointerdown', { button: 0, clientX: 10, clientY: 20, pointerId: 4 });
+  lightboxImage.dispatch('pointermove', { clientX: 30, clientY: 45, pointerId: 4 });
+  assert.equal(lightboxImage.style.transform, 'translate(20px, 25px) scale(1.15)');
+
+  lightboxImage.dispatch('pointerup', { pointerId: 4 });
+  assert.equal(lightboxImage.hasPointerCapture(4), false);
+
+  lightboxImage.dispatch('dblclick');
+  assert.equal(lightboxImage.style.transform, 'translate(0px, 0px) scale(1)');
+
+  zoomIn.click();
+  reset.click();
+  assert.equal(lightboxImage.style.transform, 'translate(0px, 0px) scale(1)');
+  assert.equal(image.src, 'file:///tmp/diagram.png');
 });

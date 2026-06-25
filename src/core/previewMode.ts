@@ -1,6 +1,6 @@
 import { PreviewMode } from '../types';
 
-export const DEFAULT_PREVIEW_MODE: PreviewMode = 'beside';
+export const DEFAULT_PREVIEW_MODE: PreviewMode = 'inline';
 
 export function normalizePreviewMode(value: unknown): PreviewMode {
   return value === 'inline' || value === 'beside' ? value : DEFAULT_PREVIEW_MODE;

@@ -9,7 +9,7 @@ const ALT_TEXT_RE = /!\[\s*\]\([^)]+\)/;
 const ABSOLUTE_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const IMAGE_RE = /!\[[^\]]*]\(([^)\n]+)\)/g;
 const HTML_IMG_RE = /<img\s+[^>]*?src=["']([^"']+)["'][^>]*>/gi;
-const LINK_RE = /\[([^\]]+)\]\(([^)\n]+)\)/g;
+const LINK_RE = /(?<!!)\[([^\]]+)\]\(([^)\n]+)\)/g;
 
 export function findEmptyHeadings(lines: string[], fenced: Set<number>): PreviewCheck[] {
   const checks: PreviewCheck[] = [];

@@ -38,6 +38,4 @@ export async function updatePreviewStyle(previewStyle: PreviewStyle): Promise<vo
   await vscode.workspace.getConfiguration(SECTION).update('previewStyle', previewStyle, vscode.ConfigurationTarget.Global);
 }
 
-export async function updateShowToc(showToc: boolean): Promise<void> {
-  await vscode.workspace.getConfiguration(SECTION).update('showToc', showToc, vscode.ConfigurationTarget.Global);
-}
+

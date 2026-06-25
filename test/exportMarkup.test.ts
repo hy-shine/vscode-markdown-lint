@@ -70,3 +70,51 @@ test('builds Mermaid export runtime with quiet per-diagram failures', () => {
   assert.match(runtime, /securityLevel: 'antiscript'/);
   assert.match(runtime, /theme: 'dark'/);
 });
+
+// --- New tests ---
+
+test('strips data-foldable and data-folded attributes', () => {
+  const html = '<pre class="code-block" data-foldable data-folded="true">';
+  const result = stripPreviewOnlyCodeControlsForExport(html);
+  assert.doesNotMatch(result, /data-foldable/);
+  assert.doesNotMatch(result, /data-folded/);
+});
+
+test('strips multiple copy buttons', () => {
+  const html = [
+    '<button class="code-copy-button" data-code="a">Copy</button>',
+    '<button class="code-copy-button" data-code="b">Copy</button>',
+  ].join('');
+  const result = stripPreviewOnlyCodeControlsForExport(html);
+  assert.equal(result, '');
+});
+
+test('builds Mermaid export runtime for light theme', () => {
+  const runtime = buildMermaidExportRuntime('light');
+  assert.match(runtime, /theme: 'default'/);
+});
+
+test('builds Mermaid export runtime for system theme', () => {
+  const runtime = buildMermaidExportRuntime('system');
+  assert.match(runtime, /theme: 'default'/);
+});
+
+test('htmlContainsClass handles multiple classes', () => {
+  const html = '<div class="a b c">';
+  assert.equal(htmlContainsClass(html, 'a'), true);
+  assert.equal(htmlContainsClass(html, 'b'), true);
+  assert.equal(htmlContainsClass(html, 'c'), true);
+  assert.equal(htmlContainsClass(html, 'd'), false);
+});
+
+test('htmlContainsClass handles single-class attribute', () => {
+  const html = '<div class=unique-class>';
+  assert.equal(htmlContainsClass(html, 'unique-class'), true);
+  assert.equal(htmlContainsClass(html, 'other'), false);
+});
+
+test('htmlContainsClass is case-insensitive for tag but not class names', () => {
+  const html = '<DIV class="MyClass">';
+  assert.equal(htmlContainsClass(html, 'MyClass'), true);
+  assert.equal(htmlContainsClass(html, 'myclass'), false);
+});

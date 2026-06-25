@@ -5,6 +5,8 @@ import { resolveHeadingMeta } from './headings';
 import hljs from './highlight';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { resolveReference } from './localPaths';
+import { SHELL_COMMANDS } from './shellCommands';
+import { parseFrontMatter } from './toc';
 
 export interface RenderedMarkdown {
   html: string;
@@ -144,39 +146,14 @@ function resolveImageSource(
   return resolveImageUri ? resolveImageUri(resolved.uri) : resolved.uri;
 }
 
-// Common shell commands not in highlight.js built_in list
-const shellCommands = [
-  'npm', 'npx', 'yarn', 'pnpm', 'bun',
-  'git',
-  'docker', 'docker-compose', 'podman', 'kubectl', 'helm',
-  'curl', 'wget',
-  'pip', 'pip3', 'conda', 'poetry', 'uv',
-  'node', 'python', 'python3', 'ruby', 'java', 'javac', 'go', 'rustc', 'cargo',
-  'make', 'cmake', 'gradle', 'mvn',
-  'grep', 'egrep', 'fgrep', 'rg',
-  'find', 'locate',
-  'awk', 'gawk', 'sed',
-  'more', 'less', 'head', 'tail', 'cat', 'tee',
-  'sort', 'uniq', 'diff', 'patch', 'comm',
-  'tar', 'gzip', 'gunzip', 'zip', 'unzip', 'xz', 'bzip2',
-  'ssh', 'scp', 'rsync', 'sftp',
-  'apt', 'apt-get', 'yum', 'dnf', 'brew', 'pacman',
-  'systemctl', 'service', 'journalctl',
-  'crontab', 'at',
-  'ip', 'ifconfig', 'ping', 'traceroute', 'netstat', 'ss', 'nslookup', 'dig',
-  'gcc', 'g\\+\\+', 'clang',
-  'vim', 'nano', 'emacs',
-  'man', 'info', 'tldr',
-  'jq', 'yq',
-  'env', 'export', 'source',
-];
+
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 const shellCommandRe = new RegExp(
-  `(?<![\\w./-])(?:${shellCommands.map(escapeRegExp).join('|')})(?![\\w./-])`,
+  `(?<![\\w./-])(?:${SHELL_COMMANDS.map(escapeRegExp).join('|')})(?![\\w./-])`,
   'g',
 );
 
@@ -195,28 +172,6 @@ function wrapHighlightedLines(html: string): string {
 
 function stripFrontMatter(markdown: string): string {
   const normalized = markdown.charCodeAt(0) === 0xfeff ? markdown.slice(1) : markdown;
-  const match = normalized.match(/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n?/);
-  if (!match) {
-    return markdown;
-  }
-
-  const body = match[1];
-  const lines = body.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length === 0) {
-    return markdown;
-  }
-
-  const isYamlLike = lines.every((line) => {
-    const trimmed = line.trim();
-    return /^#/.test(trimmed)
-      || /^[A-Za-z0-9_.-]+\s*:/.test(trimmed)
-      || /^-\s+/.test(trimmed)
-      || /^\s+/.test(line);
-  });
-
-  if (!isYamlLike) {
-    return markdown;
-  }
-
-  return normalized.slice(match[0].length);
+  const { bodyStart } = parseFrontMatter(markdown);
+  return bodyStart > 0 ? normalized.slice(bodyStart) : markdown;
 }
