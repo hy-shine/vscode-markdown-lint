@@ -22,7 +22,7 @@ AGENTS.md
 CLAUDE.md
 Makefile
 images/README.md
-docs/**
+dev-docs/**
 events.jsonl
 config.json
 views.json

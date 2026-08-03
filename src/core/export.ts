@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
@@ -7,7 +8,7 @@ import {
   htmlContainsClass,
   stripPreviewOnlyCodeControlsForExport,
 } from './exportMarkup';
-import { buildKatexStylesheetTag, buildMermaidScriptTag } from './exportAssets';
+import { buildKatexStylesheetTag, buildMermaidScriptTag, buildExportCsp } from './exportAssets';
 import { escapeAttribute, escapeHtml } from './htmlUtils';
 import { inlineLocalImagesAsBase64 } from './exportPure';
 import { renderMarkdown } from './markdown';
@@ -66,13 +67,15 @@ export async function exportHtml(document: vscode.TextDocument, context: vscode.
   const themeMode = config.themeMode === 'system'
     ? (vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Light ? 'light' : 'dark')
     : config.themeMode;
-  const styleCss = await loadExportCss(context, themeMode, config.previewStyle);
+  const styleCss = await loadExportCss(context);
   const katexStyleTag = htmlContainsClass(finalHtmlContent, 'katex')
     ? buildKatexStylesheetTag()
     : '';
+  const exportNonce = randomUUID().replace(/-/g, '');
+  const exportCsp = buildExportCsp(exportNonce);
   const mermaidRuntime = htmlContainsClass(finalHtmlContent, 'mermaid')
     ? `${buildMermaidScriptTag()}
-  <script>${buildMermaidExportRuntime(themeMode)}</script>`
+  <script nonce="${exportNonce}">${buildMermaidExportRuntime(themeMode)}</script>`
     : '';
 
   const tocHtml = config.showToc && toc.length > 0
@@ -84,6 +87,7 @@ export async function exportHtml(document: vscode.TextDocument, context: vscode.
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="${exportCsp}" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(path.basename(sourceUri.fsPath, '.md'))}</title>
   ${katexStyleTag}
@@ -107,7 +111,7 @@ ${mermaidRuntime}
   });
 }
 
-async function loadExportCss(context: vscode.ExtensionContext, themeMode: string, previewStyle: string): Promise<string> {
+async function loadExportCss(context: vscode.ExtensionContext): Promise<string> {
   const cssUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'main.css');
   try {
     let css = new TextDecoder().decode(await vscode.workspace.fs.readFile(cssUri));

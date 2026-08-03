@@ -42,8 +42,8 @@ Each style supports **System / Light / Dark** mode. System follows your VS Code 
 
 - TOC sidebar with automatic heading extraction
 - Current section highlight as you scroll
-- Click a heading to jump to the editor
-- Scroll sync between editor and preview
+- Click a heading to navigate; Inline keeps the navigation in the preview, while Beside reveals the source editor
+- Click the Inline preview title-bar icon to switch to the Markdown source; use the same source editor preview command to switch back
 
 ### Rich Content Support
 
@@ -51,9 +51,22 @@ Each style supports **System / Light / Dark** mode. System follows your VS Code 
 - **Math formulas** via KaTeX (`$...$` inline, `$$...$$` block)
 - **Mermaid diagrams** rendered on the fly
 
+### Markdown Support
+
+Supports common GitHub-flavored Markdown, including headings, lists, tables,
+task lists, strikethrough, links, images, fenced code blocks, KaTeX math,
+Mermaid diagrams, and YAML-like front matter hiding.
+
+Known code languages use syntax highlighting; unknown languages fall back to
+plain text. Raw inline HTML is rendered for compatibility and subject to the
+extension's current security restrictions.
+
+The supported file extension is `.md`.
+
 ### Preview Checks
 
-The preview automatically checks for common Markdown issues and reports them in the VS Code Problems panel:
+The preview reports common Markdown issues as warnings in the Problems panel. It does not modify your document; use `Format Document` for formatting.
+
 - Empty headings, heading level skips, duplicate headings
 - Missing image alt text, broken local links, missing local images
 
@@ -68,6 +81,8 @@ Export your Markdown to a shareable HTML file with preview styles and local imag
 ## Settings
 
 Search for `Markdown Preview Lite` in VS Code Settings.
+
+User settings provide the defaults. Workspace settings override them. Preview menu changes are written to User settings; use VS Code Settings to configure the table of contents.
 
 For compatibility with earlier releases, the setting IDs still use the historical `markdown-lint.*` namespace:
 
@@ -88,7 +103,7 @@ For compatibility with earlier releases, the setting IDs still use the historica
 - `Markdown Preview Lite: Reopen as Markdown Source` (`markdown-lint.reopenAsSource`) — Switch a direct preview back to the Markdown editor
 - `Markdown Preview Lite: Format Document` (`markdown-lint.formatDocument`) — Clean up Markdown structure
 - `Markdown Preview Lite: Refresh TOC` (`markdown-lint.refreshToc`) — Re-extract headings
-- `Markdown Preview Lite: Export HTML` (`markdown-lint.exportHtml`) — Save as standalone HTML
+- `Markdown Preview Lite: Export HTML` (`markdown-lint.exportHtml`) — Export Markdown as HTML; Mermaid and KaTeX assets may require network access
 
 ---
 
