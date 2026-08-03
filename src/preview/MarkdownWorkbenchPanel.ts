@@ -285,12 +285,6 @@ export class MarkdownWorkbenchPanel
 		}, 50);
 	}
 
-	public notifyResize(): void {
-		for (const entry of this.previews.values()) {
-			this.notifyResizeEntry(entry);
-		}
-	}
-
 	public async formatActiveDocument(): Promise<void> {
 		const editor = vscode.window.activeTextEditor;
 		if (editor?.document.languageId === "markdown") {

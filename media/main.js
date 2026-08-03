@@ -417,12 +417,12 @@ window.addEventListener('scroll', () => {
     updateActiveTocLink();
   }
 
-  if (scrollSync.isBlocked(['editor', 'navigation', 'render'])) {
+  if (scrollSync.isBlocked(['editor', 'navigation', 'render', 'resize'])) {
     return;
   }
 
   scrollSync.debounce(() => {
-    if (scrollSync.isBlocked(['editor', 'navigation', 'render'])) {
+    if (scrollSync.isBlocked(['editor', 'navigation', 'render', 'resize'])) {
       return;
     }
 
@@ -431,6 +431,7 @@ window.addEventListener('scroll', () => {
 });
 
 window.addEventListener('resize', () => {
+  scrollSync.block('resize', 300);
   resetActiveHeadingObserver();
   updateActiveTocLink();
 });
