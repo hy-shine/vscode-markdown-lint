@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getWorkbenchConfig } from './config';
@@ -52,6 +53,8 @@ export async function exportHtml(document: vscode.TextDocument, context: vscode.
 
   // Inline local images as base64 data URIs so the exported HTML is
   // self-contained.
+  const workspaceRoot = vscode.workspace.getWorkspaceFolder(sourceUri)?.uri;
+  const allowedRoot = workspaceRoot ?? vscode.Uri.joinPath(sourceUri, '..');
   finalHtmlContent = await inlineLocalImagesAsBase64(
     finalHtmlContent,
     async (uri) => {
@@ -61,6 +64,10 @@ export async function exportHtml(document: vscode.TextDocument, context: vscode.
         console.warn(`[markdown-lint] exportHtml: failed to load image ${uri}`, e);
         throw e;
       }
+    },
+    {
+      allowedRoot: allowedRoot.toString(),
+      resolveRealPath: async (p) => fs.promises.realpath(p),
     },
   );
 

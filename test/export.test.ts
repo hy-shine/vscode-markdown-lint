@@ -174,3 +174,131 @@ test('derives correct MIME type from each supported extension', async () => {
   assert.match(result, /data:image\/svg\+xml;base64,/);
   assert.match(result, /data:application\/octet-stream;base64,/);
 });
+
+test('skips local images outside the allowed root', async () => {
+  const { readFile, reads } = mockFilesystem({ '/etc/passwd': new Uint8Array([1]) });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///etc/passwd" alt="secret">',
+    readFile,
+    { allowedRoot: 'file:///workspace/docs/' },
+  );
+
+  assert.match(result, /src="file:\/\/\/etc\/passwd"/);
+  assert.equal(reads.length, 0, 'no filesystem read attempted outside the root');
+});
+
+test('inlines local images inside the allowed root', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/docs/img/a.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/docs/img/a.png" alt="a">',
+    readFile,
+    { allowedRoot: 'file:///workspace' },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+  assert.doesNotMatch(result, /file:\/\//);
+});
+
+test('inlines ../ references that resolve inside the allowed root', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/shared/logo.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/shared/logo.png" alt="logo">',
+    readFile,
+    { allowedRoot: 'file:///workspace' },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+});
+
+test('decodes percent-encoded paths before comparing against the allowed root', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/my%20img.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/my%20img.png" alt="a">',
+    readFile,
+    { allowedRoot: 'file:///workspace' },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+});
+
+test('blocks symlink escapes via the injected realpath resolver', async () => {
+  const { readFile, reads } = mockFilesystem({ '/Users/me/.ssh/id_rsa.png': PNG_MAGIC });
+  const resolveRealPath = async (p: string) =>
+    p.replace('/workspace/assets/', '/Users/me/.ssh/');
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/assets/id_rsa.png" alt="x">',
+    readFile,
+    { allowedRoot: 'file:///workspace', resolveRealPath },
+  );
+
+  assert.match(result, /src="file:\/\/\/workspace\/assets\/id_rsa\.png"/);
+  assert.equal(reads.length, 0, 'realpath escape is not read');
+});
+
+test('allows realpath resolution that stays inside the allowed root', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/img/a.png': PNG_MAGIC });
+  const resolveRealPath = async (p: string) => p;
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/img/a.png" alt="a">',
+    readFile,
+    { allowedRoot: 'file:///workspace', resolveRealPath },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+});
+
+test('does not treat a sibling directory as inside the allowed root', async () => {
+  const { readFile, reads } = mockFilesystem({ '/workspace/docs-other/x.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/docs-other/x.png" alt="x">',
+    readFile,
+    { allowedRoot: 'file:///workspace/docs' },
+  );
+
+  assert.match(result, /src="file:\/\/\/workspace\/docs-other\/x\.png"/);
+  assert.equal(reads.length, 0);
+});
+
+test('handles an allowed root with a trailing slash', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/docs/img/a.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/docs/img/a.png" alt="a">',
+    readFile,
+    { allowedRoot: 'file:///workspace/docs/' },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+});
+
+test('filesystem root as allowed root does not skip every image', async () => {
+  const { readFile } = mockFilesystem({ '/workspace/docs/img/a.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/docs/img/a.png" alt="a">',
+    readFile,
+    { allowedRoot: 'file:///' },
+  );
+
+  assert.match(result, /src="data:image\/png;base64,/);
+});
+
+test('comparison stays case-sensitive on case-sensitive filesystems', async () => {
+  const { readFile, reads } = mockFilesystem({ '/workspace/DOCS/x.png': PNG_MAGIC });
+
+  const result = await inlineLocalImagesAsBase64(
+    '<img src="file:///workspace/DOCS/x.png" alt="x">',
+    readFile,
+    { allowedRoot: 'file:///workspace/docs' },
+  );
+
+  assert.match(result, /src="file:\/\/\/workspace\/DOCS\/x\.png"/);
+  assert.equal(reads.length, 0);
+});
