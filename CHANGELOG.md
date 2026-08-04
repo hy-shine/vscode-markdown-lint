@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1] - 2026-08-04
+
+### Fixed
+
+- Fix editor-to-preview scroll sync being fully suppressed by a misplaced resize guard.
+- Fix export inlining arbitrary `file://` images; only images inside the workspace (or the document directory for single files) are inlined, with symlink resolution.
+- Fix Format inside the Inline preview switching to the Markdown source editor.
+- Fix Mermaid preview initialization failing when the active theme uses `color-mix` CSS colors.
+- Fix Mermaid renderer loading being shadowed by a document element whose `id` is `mermaid` (for example a heading), which left every diagram showing "Renderer failed to load.".
+- Upgrade dompurify to 3.4.13 and the nested esbuild used by tsx to 0.28.1 to clear dependency advisories.
+
 ## [0.7.0] - 2026-08-03
 
 ### Added
