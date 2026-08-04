@@ -107,8 +107,45 @@
     return sources;
   }
 
+  function isMermaidApi(value) {
+    return Boolean(value) && typeof value.initialize === 'function';
+  }
+
+  function createMermaidLoader(options) {
+    let loadPromise = null;
+
+    function load() {
+      const existing = options.normalizeApi(options.getGlobal());
+      if (existing) {
+        return Promise.resolve(existing);
+      }
+
+      if (loadPromise) {
+        return loadPromise;
+      }
+
+      loadPromise = options
+        .loadScriptSequence(options.getScriptSources())
+        .then((loaded) => {
+          const api = options.normalizeApi(loaded);
+          if (!api) {
+            loadPromise = null;
+          }
+          return api;
+        })
+        .catch(() => {
+          loadPromise = null;
+          return null;
+        });
+
+      return loadPromise;
+    }
+
+    return { load };
+  }
+
   function loadScriptSequence(environment, sources, globalName) {
-    if (environment?.[globalName]) {
+    if (isMermaidApi(environment?.[globalName])) {
       return Promise.resolve(environment[globalName]);
     }
 
@@ -125,7 +162,7 @@
         const script = environment.document.createElement('script');
         script.src = src;
         script.onload = () => {
-          if (environment?.[globalName]) {
+          if (isMermaidApi(environment?.[globalName])) {
             resolve(environment[globalName]);
             return;
           }
@@ -145,9 +182,11 @@
     MERMAID_CDN_SRC,
     MERMAID_SECURITY_LEVEL,
     createEventListenerScope,
+    createMermaidLoader,
     createMermaidRenderSession,
     getMermaidScriptSources,
     isDarkPreviewAppearance,
+    isMermaidApi,
     loadScriptSequence,
   };
 });

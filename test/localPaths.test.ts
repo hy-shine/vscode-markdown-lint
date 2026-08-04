@@ -7,14 +7,15 @@ test('resolves anchor references', () => {
   assert.deepStrictEqual(result, { type: 'anchor', fragment: 'section-1' });
 });
 
-test('resolves external HTTP URLs', () => {
-  const result = resolveReference('file:///docs/', 'https://example.com');
-  assert.deepStrictEqual(result, { type: 'external', href: 'https://example.com' });
-});
-
-test('resolves external HTTP URLs', () => {
-  const result = resolveReference('file:///docs/', 'http://example.com');
-  assert.deepStrictEqual(result, { type: 'external', href: 'http://example.com' });
+test('resolves external HTTP and HTTPS URLs', () => {
+  assert.deepStrictEqual(resolveReference('file:///docs/', 'https://example.com'), {
+    type: 'external',
+    href: 'https://example.com',
+  });
+  assert.deepStrictEqual(resolveReference('file:///docs/', 'http://example.com'), {
+    type: 'external',
+    href: 'http://example.com',
+  });
 });
 
 test('resolves external FTP URLs', () => {

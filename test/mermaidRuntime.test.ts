@@ -7,6 +7,7 @@ const {
   MERMAID_CDN_SRC,
   MERMAID_SECURITY_LEVEL,
   createEventListenerScope,
+  createMermaidLoader,
   createMermaidRenderSession,
   getMermaidScriptSources,
   isDarkPreviewAppearance,
@@ -126,7 +127,7 @@ test('script sequence loader retries the next source after an error', async () =
             script.onerror();
             return;
           }
-          environment.mermaid = { render: () => undefined };
+          environment.mermaid = { initialize: () => undefined, render: () => undefined };
           script.onload();
         },
       },
@@ -154,7 +155,7 @@ test('script sequence loader retries when a loaded script does not expose the gl
             script.onload();
             return;
           }
-          environment.mermaid = { render: () => undefined };
+          environment.mermaid = { initialize: () => undefined, render: () => undefined };
           script.onload();
         },
       },
@@ -165,4 +166,132 @@ test('script sequence loader retries when a loaded script does not expose the gl
 
   assert.equal(result, environment.mermaid);
   assert.deepEqual(appended.map((script) => script.src), ['local.js', 'cdn.js']);
+});
+
+test('script sequence loader ignores non-API globals shadowing the renderer', async () => {
+  const appended: any[] = [];
+  const environment: any = {
+    mermaid: {},
+    document: {
+      createElement() {
+        return {};
+      },
+      head: {
+        appendChild(script: any) {
+          appended.push(script);
+          environment.mermaid = { initialize: () => undefined, render: () => undefined };
+          script.onload();
+        },
+      },
+    },
+  };
+
+  const result = await loadScriptSequence(environment, ['local.js'], 'mermaid');
+
+  assert.equal(result, environment.mermaid);
+  assert.deepEqual(appended.map((script) => script.src), ['local.js']);
+});
+
+function createLoaderHarness() {
+  let globalValue: unknown = undefined;
+  let loadCalls = 0;
+  let pending: (() => void) | null = null;
+  let failNextLoad = false;
+
+  const loader = createMermaidLoader({
+    getGlobal: () => globalValue,
+    normalizeApi: (value: any) =>
+      value?.initialize ? value : value?.default?.initialize ? value.default : null,
+    getScriptSources: () => ['local.js'],
+    loadScriptSequence: () => {
+      loadCalls += 1;
+      return new Promise((resolve, reject) => {
+        pending = () => {
+          if (failNextLoad) {
+            failNextLoad = false;
+            reject(new Error('load failed'));
+            return;
+          }
+          resolve(globalValue);
+        };
+      });
+    },
+  });
+
+  return {
+    complete() {
+      pending?.();
+    },
+    failNext() {
+      failNextLoad = true;
+      pending?.();
+    },
+    get loadCalls() {
+      return loadCalls;
+    },
+    get loader() {
+      return loader;
+    },
+    getGlobal() {
+      return globalValue;
+    },
+    setGlobal(value: unknown) {
+      globalValue = value;
+    },
+  };
+}
+
+function createFakeApi() {
+  return { initialize: () => undefined, render: () => undefined };
+}
+
+test('loader returns an existing global API without loading the script', async () => {
+  const harness = createLoaderHarness();
+  harness.setGlobal(createFakeApi());
+
+  const result = await harness.loader.load();
+
+  assert.equal(result, harness.getGlobal());
+  assert.equal(harness.loadCalls, 0);
+});
+
+test('loader shares one load across concurrent callers', async () => {
+  const harness = createLoaderHarness();
+
+  const first = harness.loader.load();
+  const second = harness.loader.load();
+  harness.setGlobal(createFakeApi());
+  harness.complete();
+
+  const results = await Promise.all([first, second]);
+
+  assert.equal(harness.loadCalls, 1);
+  assert.equal(results[0], results[1]);
+});
+
+test('loader retries when a load resolves without a usable API', async () => {
+  const harness = createLoaderHarness();
+  const first = harness.loader.load();
+  harness.setGlobal({});
+  harness.complete();
+  assert.equal(await first, null);
+
+  const second = harness.loader.load();
+  assert.equal(harness.loadCalls, 2);
+  harness.setGlobal(createFakeApi());
+  harness.complete();
+  assert.equal(typeof (await second)?.initialize, 'function');
+});
+
+test('loader retries when a load rejects', async () => {
+  const harness = createLoaderHarness();
+  const first = harness.loader.load();
+  harness.failNext();
+  assert.equal(await first, null);
+
+  const second = harness.loader.load();
+  assert.equal(harness.loadCalls, 2);
+  harness.setGlobal(createFakeApi());
+  harness.complete();
+  assert.equal(typeof (await second)?.initialize, 'function');
 });

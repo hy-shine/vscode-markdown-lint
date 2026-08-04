@@ -30,28 +30,11 @@ test('preserves Chinese characters when slugifying headings', () => {
   assert.equal(slugify('中文标题 Test!'), '中文标题-test');
 });
 
-test('ignores headings inside backtick fenced code blocks', () => {
-  const toc = extractToc([
-    '# Real Heading',
-    '```ts',
-    '# Fake Heading',
-    '```',
-    '## Next Heading',
-  ].join('\n'));
-
-  assert.deepEqual(toc.map((item) => item.text), ['Real Heading', 'Next Heading']);
-});
-
-test('ignores headings inside tilde fenced code blocks', () => {
-  const toc = extractToc([
-    '# Real Heading',
-    '~~~md',
-    '# Fake Heading',
-    '~~~',
-    '## Next Heading',
-  ].join('\n'));
-
-  assert.deepEqual(toc.map((item) => item.text), ['Real Heading', 'Next Heading']);
+test('ignores headings inside fenced code blocks', () => {
+  for (const fence of ['```ts\n# Fake Heading\n```', '~~~md\n# Fake Heading\n~~~']) {
+    const toc = extractToc(['# Real Heading', fence, '## Next Heading'].join('\n'));
+    assert.deepEqual(toc.map((item) => item.text), ['Real Heading', 'Next Heading']);
+  }
 });
 
 test('strips ATX closing hashes from heading text', () => {

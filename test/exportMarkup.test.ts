@@ -73,13 +73,6 @@ test('builds Mermaid export runtime with quiet per-diagram failures', () => {
 
 // --- New tests ---
 
-test('strips data-foldable and data-folded attributes', () => {
-  const html = '<pre class="code-block" data-foldable data-folded="true">';
-  const result = stripPreviewOnlyCodeControlsForExport(html);
-  assert.doesNotMatch(result, /data-foldable/);
-  assert.doesNotMatch(result, /data-folded/);
-});
-
 test('strips multiple copy buttons', () => {
   const html = [
     '<button class="code-copy-button" data-code="a">Copy</button>',

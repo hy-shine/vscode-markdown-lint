@@ -5,9 +5,11 @@ const {
   addClassToAll,
   createFallbackMermaidConfig,
   createMermaidConfig,
+  createMermaidDesign,
   detectMermaidDiagramType,
   enhanceMermaidSvg,
   formatMermaidErrorDetail,
+  resolveCssColor,
   roundSvgRects,
 } = require('../media/mermaidEnhancement.js');
 
@@ -231,4 +233,126 @@ test('creates Mermaid fallback config for dark and light appearances', () => {
       htmlLabels: true,
     },
   });
+});
+
+function createResolveEnvironment(computedColor = 'rgb(244, 244, 244)') {
+  const probe = {
+    style: {} as Record<string, string>,
+    remove() {},
+  };
+  return {
+    document: {
+      body: {
+        appendChild(element: unknown) {
+          assert.equal(element, probe);
+        },
+      },
+      createElement(tag: string) {
+        assert.equal(tag, 'span');
+        return probe;
+      },
+    },
+    getComputedStyle(element: unknown) {
+      assert.equal(element, probe);
+      return { color: computedColor };
+    },
+  };
+}
+
+test('resolves CSS color expressions through the browser computed style', () => {
+  const environment = createResolveEnvironment();
+
+  const resolved = resolveCssColor('color-mix(in srgb, #ffffff 88%, black 12%)', environment);
+
+  assert.equal(resolved, 'rgb(244, 244, 244)');
+});
+
+test('passes through already concrete color formats', () => {
+  const environment = createResolveEnvironment();
+
+  assert.equal(resolveCssColor('#ffffff', environment), '#ffffff');
+  assert.equal(resolveCssColor('#fff8', environment), '#fff8');
+  assert.equal(resolveCssColor('rgb(31, 35, 40)', environment), 'rgb(31, 35, 40)');
+  assert.equal(resolveCssColor('rgba(31, 35, 40, 0.5)', environment), 'rgba(31, 35, 40, 0.5)');
+  assert.equal(resolveCssColor('hsl(220, 50%, 40%)', environment), 'hsl(220, 50%, 40%)');
+});
+
+test('returns the input when the computed color cannot be read', () => {
+  const environment = createResolveEnvironment();
+  environment.getComputedStyle = () => {
+    throw new Error('no DOM');
+  };
+
+  const value = 'color-mix(in srgb, #ffffff 88%, black 12%)';
+  assert.equal(resolveCssColor(value, environment), value);
+});
+
+test('returns the input when the browser cannot resolve the color', () => {
+  const environment = createResolveEnvironment('');
+  assert.equal(resolveCssColor('var(--missing)', environment), 'var(--missing)');
+});
+
+test('returns falsy or non-string inputs unchanged', () => {
+  const environment = createResolveEnvironment();
+
+  assert.equal(resolveCssColor('', environment), '');
+  assert.equal(resolveCssColor(undefined, environment), undefined);
+  assert.equal(resolveCssColor(null, environment), null);
+});
+
+test('does not throw when called without an environment', () => {
+  assert.equal(resolveCssColor('#ffffff'), '#ffffff');
+  assert.equal(resolveCssColor('color-mix(in srgb, #fff 50%, #000)', undefined), 'color-mix(in srgb, #fff 50%, #000)');
+});
+
+function createResolvedColors() {
+  return {
+    accent: '#8ab4f8',
+    bg: '#1d2026',
+    border: '#353d49',
+    codeBg: '#1d2026',
+    fontFamily: 'Inter, sans-serif',
+    muted: '#9aa0a6',
+    panel: '#303743',
+    surfaceSoft: '#29313c',
+    text: '#e8eaed',
+  };
+}
+
+test('builds Mermaid design tokens from resolved CSS colors', () => {
+  const design = createMermaidDesign(createResolvedColors(), true);
+
+  assert.equal(design.background, '#1d2026');
+  assert.equal(design.nodeFill, '#303743');
+  assert.equal(design.nodeFillAlt, '#29313c');
+  assert.equal(design.clusterFill, '#29313c');
+  assert.equal(design.labelFill, '#1d2026');
+  assert.equal(design.noteFill, '#303743');
+  assert.equal(design.text, '#e8eaed');
+  assert.equal(design.textSoft, '#9aa0a6');
+  assert.equal(design.edge, '#9aa0a6');
+  assert.equal(design.edgeActive, '#8ab4f8');
+  assert.equal(design.border, '#353d49');
+  assert.equal(design.borderStrong, '#8ab4f8');
+  assert.equal(design.fontFamily, 'Inter, sans-serif');
+  assert.equal(design.curve, 'basis');
+  assert.equal(design.nodeRadius, 6);
+  assert.equal(design.clusterRadius, 8);
+  assert.equal(design.lineWidth, 1.0);
+});
+
+test('dark design uses light text on accent and inset shadows', () => {
+  const design = createMermaidDesign(createResolvedColors(), true);
+
+  assert.equal(design.textOnAccent, '#1e1e1e');
+  assert.match(design.shellShadow, /^inset 0 1px 0 rgba\(255,255,255,0.03\)$/);
+  assert.match(design.shellHoverShadow, /^inset 0 1px 0 rgba\(255,255,255,0.05\), 0 8px 20px rgba\(0,0,0,0.12\)$/);
+});
+
+test('light design uses dark text on accent and lifted shadows', () => {
+  const design = createMermaidDesign({ ...createResolvedColors(), bg: '#f6f8fb', panel: '#ffffff' }, false);
+
+  assert.equal(design.textOnAccent, '#ffffff');
+  assert.match(design.shellShadow, /^inset 0 1px 0 rgba\(255,255,255,0.78\), 0 1px 2px rgba\(31,35,40,0.04\)$/);
+  assert.match(design.shellHoverShadow, /^inset 0 1px 0 rgba\(255,255,255,0.95\), 0 10px 26px rgba\(31,35,40,0.08\)$/);
 });

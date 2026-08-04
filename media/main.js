@@ -28,7 +28,6 @@ let currentState = {
 };
 
 const scrollSync = window.MDLINT_SCROLL_SYNC_RUNTIME.createScrollSyncGate();
-let mermaidLoadPromise = null;
 const mermaidRuntime = window.MDLINT_MERMAID_RUNTIME;
 const mermaidEnhancement = window.MDLINT_MERMAID_ENHANCEMENT;
 const mermaidFullscreen = window.MDLINT_MERMAID_INTERACTION.createMermaidFullscreen({
@@ -469,7 +468,10 @@ async function renderMermaidDiagrams(renderToken) {
     } catch (fallbackError) {
       console.error('Mermaid fallback initialize failed.', fallbackError);
       if (mermaidRenderSession.isCurrent(renderToken)) {
-        replaceMermaidBlocksWithError(mermaidBlocks, 'Renderer initialization failed.');
+        replaceMermaidBlocksWithError(
+          mermaidBlocks,
+          fallbackError?.message || 'Renderer initialization failed.',
+        );
       }
       return;
     }
@@ -642,47 +644,39 @@ function getCssColor(styles, name, fallback) {
   return value || fallback;
 }
 
+function normalizeMermaidApi(value) {
+  if (value?.initialize) {
+    return value;
+  }
+  if (value?.default?.initialize) {
+    return value.default;
+  }
+  return null;
+}
+
 function getMermaidDesignTokens() {
   const bodyStyles = getComputedStyle(body);
   const previewStyles = getComputedStyle(previewContent);
-  const fontFamily = previewStyles.fontFamily || bodyStyles.fontFamily;
   const isDark = isPreviewDarkAppearance();
-  const bg = getCssColor(bodyStyles, '--bg', isDark ? '#1d2026' : '#f6f8fb');
-  const panel = getCssColor(bodyStyles, '--panel', isDark ? '#303743' : '#ffffff');
-  const codeBg = getCssColor(bodyStyles, '--code-bg', isDark ? '#1d2026' : '#f6f8fb');
-  const surfaceSoft = getCssColor(bodyStyles, '--surface-soft', isDark ? '#29313c' : '#eef3f8');
-  const text = getCssColor(bodyStyles, '--text', isDark ? '#e8eaed' : '#202124');
-  const muted = getCssColor(bodyStyles, '--muted', isDark ? '#9aa0a6' : '#5f6368');
-  const accent = getCssColor(bodyStyles, '--accent', isDark ? '#8ab4f8' : '#1a73e8');
-  const border = getCssColor(bodyStyles, '--border', isDark ? '#353d49' : '#d7dee8');
+  const resolve = (name, fallback) =>
+    mermaidEnhancement.resolveCssColor(
+      getCssColor(bodyStyles, name, isDark ? fallback[0] : fallback[1]),
+    );
 
-  return {
-    fontFamily,
+  return mermaidEnhancement.createMermaidDesign(
+    {
+      fontFamily: previewStyles.fontFamily || bodyStyles.fontFamily,
+      bg: resolve('--bg', ['#1d2026', '#f6f8fb']),
+      panel: resolve('--panel', ['#303743', '#ffffff']),
+      codeBg: resolve('--code-bg', ['#1d2026', '#f6f8fb']),
+      surfaceSoft: resolve('--surface-soft', ['#29313c', '#eef3f8']),
+      text: resolve('--text', ['#e8eaed', '#202124']),
+      muted: resolve('--muted', ['#9aa0a6', '#5f6368']),
+      accent: resolve('--accent', ['#8ab4f8', '#1a73e8']),
+      border: resolve('--border', ['#353d49', '#d7dee8']),
+    },
     isDark,
-    curve: 'basis',
-    nodeRadius: 6,
-    clusterRadius: 8,
-    lineWidth: 1.0,
-    background: codeBg,
-    nodeFill: panel,
-    nodeFillAlt: surfaceSoft,
-    clusterFill: surfaceSoft,
-    labelFill: bg,
-    noteFill: panel,
-    text,
-    textSoft: muted,
-    textOnAccent: isDark ? '#1e1e1e' : '#ffffff',
-    edge: muted,
-    edgeActive: accent,
-    border,
-    borderStrong: accent,
-    shellShadow: isDark
-      ? 'inset 0 1px 0 rgba(255,255,255,0.03)'
-      : 'inset 0 1px 0 rgba(255,255,255,0.78), 0 1px 2px rgba(31,35,40,0.04)',
-    shellHoverShadow: isDark
-      ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.12)'
-      : 'inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 26px rgba(31,35,40,0.08)',
-  };
+  );
 }
 
 function applyMermaidDesignTokens(container) {
@@ -776,27 +770,15 @@ function setupMermaidInteraction(container) {
   mermaidInteraction.setup(container);
 }
 
-async function loadMermaid() {
-  if (window.mermaid) {
-    return window.mermaid;
-  }
+const mermaidLoader = mermaidRuntime.createMermaidLoader({
+  getGlobal: () => window.mermaid,
+  normalizeApi: normalizeMermaidApi,
+  getScriptSources: () =>
+    mermaidRuntime.getMermaidScriptSources(window.MDLINT_MERMAID_URI),
+  loadScriptSequence: (sources) =>
+    mermaidRuntime.loadScriptSequence(window, sources, 'mermaid'),
+});
 
-  if (mermaidLoadPromise) {
-    return mermaidLoadPromise;
-  }
-
-  const sources = mermaidRuntime.getMermaidScriptSources(window.MDLINT_MERMAID_URI);
-  mermaidLoadPromise = mermaidRuntime.loadScriptSequence(window, sources, 'mermaid')
-    .then((mermaid) => {
-      if (!mermaid) {
-        mermaidLoadPromise = null;
-      }
-      return mermaid;
-    })
-    .catch(() => {
-      mermaidLoadPromise = null;
-      return null;
-    });
-
-  return mermaidLoadPromise;
+function loadMermaid() {
+  return mermaidLoader.load();
 }

@@ -84,22 +84,18 @@ test('escapes HTML in code blocks', () => {
 
 // --- Shell command annotation ---
 
-test('annotates shell commands in bash code blocks', () => {
-  const result = renderMarkdown('```bash\ngit status\n```', []);
-  assert.match(result.html, /hljs-command/);
-  assert.match(result.html, /git/);
-});
+test('annotates shell commands in supported shell code blocks', () => {
+  const cases = [
+    ['bash', 'git status'],
+    ['sh', 'docker ps'],
+    ['zsh', 'npm install'],
+  ] as const;
 
-test('annotates shell commands in sh code blocks', () => {
-  const result = renderMarkdown('```sh\ndocker ps\n```', []);
-  assert.match(result.html, /hljs-command/);
-  assert.match(result.html, /docker/);
-});
-
-test('annotates shell commands in zsh code blocks', () => {
-  const result = renderMarkdown('```zsh\nnpm install\n```', []);
-  assert.match(result.html, /hljs-command/);
-  assert.match(result.html, /npm/);
+  for (const [language, command] of cases) {
+    const result = renderMarkdown('```' + language + '\n' + command + '\n```', []);
+    assert.match(result.html, /hljs-command/);
+    assert.match(result.html, new RegExp(command.replace(' ', '\\s')));
+  }
 });
 
 test('does not annotate shell commands in non-shell languages', () => {

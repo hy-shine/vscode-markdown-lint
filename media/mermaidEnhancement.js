@@ -100,6 +100,36 @@
     roundSvgRects(svg, '.actor rect, .classBox rect, .note rect', Math.max(4, nodeRadius - 2));
   }
 
+  function createMermaidDesign(resolved, isDark) {
+    return {
+      fontFamily: resolved.fontFamily,
+      isDark,
+      curve: 'basis',
+      nodeRadius: 6,
+      clusterRadius: 8,
+      lineWidth: 1.0,
+      background: resolved.codeBg,
+      nodeFill: resolved.panel,
+      nodeFillAlt: resolved.surfaceSoft,
+      clusterFill: resolved.surfaceSoft,
+      labelFill: resolved.bg,
+      noteFill: resolved.panel,
+      text: resolved.text,
+      textSoft: resolved.muted,
+      textOnAccent: isDark ? '#1e1e1e' : '#ffffff',
+      edge: resolved.muted,
+      edgeActive: resolved.accent,
+      border: resolved.border,
+      borderStrong: resolved.accent,
+      shellShadow: isDark
+        ? 'inset 0 1px 0 rgba(255,255,255,0.03)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.78), 0 1px 2px rgba(31,35,40,0.04)',
+      shellHoverShadow: isDark
+        ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.12)'
+        : 'inset 0 1px 0 rgba(255,255,255,0.95), 0 10px 26px rgba(31,35,40,0.08)',
+    };
+  }
+
   function createMermaidConfig(design, securityLevel) {
     const themeVariables = {
       background: design.background,
@@ -195,6 +225,31 @@
     };
   }
 
+  function resolveCssColor(value, environment = typeof globalThis !== 'undefined' ? globalThis : window) {
+    if (!value || typeof value !== 'string') {
+      return value;
+    }
+    if (/^(#|rgb|hsl)/i.test(value.trim())) {
+      return value;
+    }
+
+    try {
+      const document = environment?.document;
+      if (!document || !document.body || typeof document.createElement !== 'function') {
+        return value;
+      }
+
+      const probe = document.createElement('span');
+      probe.style.color = value;
+      document.body.appendChild(probe);
+      const resolved = environment.getComputedStyle(probe).color;
+      probe.remove();
+      return resolved || value;
+    } catch {
+      return value;
+    }
+  }
+
   function createFallbackMermaidConfig(isDark, securityLevel) {
     return {
       startOnLoad: false,
@@ -210,9 +265,11 @@
     addClassToAll,
     createFallbackMermaidConfig,
     createMermaidConfig,
+    createMermaidDesign,
     detectMermaidDiagramType,
     enhanceMermaidSvg,
     formatMermaidErrorDetail,
+    resolveCssColor,
     roundSvgRects,
   };
 });

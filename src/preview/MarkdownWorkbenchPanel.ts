@@ -714,7 +714,6 @@ export class MarkdownWorkbenchPanel
 			return;
 		}
 
-		const editor = await this.resolveEditor(document);
 		const filePath =
 			document.uri.scheme === "file" ? document.uri.fsPath : undefined;
 		const formatted = await formatMarkdownDocument(
@@ -726,9 +725,9 @@ export class MarkdownWorkbenchPanel
 			document.positionAt(document.getText().length),
 		);
 
-		await editor.edit((editBuilder: vscode.TextEditorEdit) => {
-			editBuilder.replace(fullRange, formatted);
-		});
+		const edit = new vscode.WorkspaceEdit();
+		edit.replace(document.uri, fullRange, formatted);
+		await vscode.workspace.applyEdit(edit);
 
 		await this.updateDocument(document);
 	}
@@ -918,23 +917,6 @@ export class MarkdownWorkbenchPanel
 		await vscode.window.showTextDocument(document, {
 			preview: false,
 			preserveFocus: false,
-		});
-	}
-
-	private async resolveEditor(
-		document: vscode.TextDocument,
-	): Promise<vscode.TextEditor> {
-		const existingEditor = vscode.window.visibleTextEditors.find(
-			(editor) => editor.document.uri.toString() === document.uri.toString(),
-		);
-
-		if (existingEditor) {
-			return existingEditor;
-		}
-
-		return vscode.window.showTextDocument(document, {
-			preserveFocus: true,
-			preview: false,
 		});
 	}
 
